@@ -6,16 +6,13 @@ Autores: Santiago Castañeda & Santiago Florez
 Curso: Computación Blanda -- Proyecto Final
 """
 
-import os
-import sys
-import threading
-from kivy.config import Config
+import os, sys, threading, math, random
 
-# Evita que el clic derecho cree puntos rojos de multitouch
+from kivy.config import Config
 Config.set('input', 'mouse', 'mouse,disable_multitouch')
 
 from kivy.app import App
-from kivy.uix.screenmanager import ScreenManager, Screen, SlideTransition, FadeTransition
+from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
@@ -24,1478 +21,1241 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.popup import Popup
-from kivy.uix.progressbar import ProgressBar
 from kivy.uix.slider import Slider
 from kivy.uix.spinner import Spinner
 from kivy.uix.widget import Widget
 from kivy.graphics import Color, Rectangle, RoundedRectangle, Line, Ellipse
 from kivy.core.window import Window
+from kivy.core.text import LabelBase
 from kivy.clock import Clock
 from kivy.metrics import dp, sp
 from kivy.animation import Animation
-from kivy.properties import StringProperty
 from kivy.utils import get_color_from_hex, platform
-import random
-import math
-import re
+from kivy.uix.image import Image
 
-# ??? Importar núcleo IA ??????????????????????????????????????????????????????
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from core.som_engine import StorySession, DEMO_STORIES
+# ── Registrar fuentes ─────────────────────────────────────────────────────────
+_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ??? Paleta de colores ????????????????????????????????????????????????????????
+LabelBase.register(
+    name='Nunito-Regular',
+    fn_regular=os.path.join(_DIR, 'Nunito-Regular.ttf'),
+    fn_bold=os.path.join(_DIR, 'Nunito-Regular.ttf'),
+)
+LabelBase.register(
+    name='Icons',
+    fn_regular=os.path.join(_DIR, 'ionicons.ttf'),
+)
+LabelBase.register(
+    name='Orbitron',
+    fn_regular=os.path.join(_DIR, 'Orbitron-Bold.ttf'),
+)
+
+# ── Ionicons v3 codepoints ────────────────────────────────────────────────────
+II = {
+    'home':        '\uf116',  # flecha arriba / inicio
+    'docs':        '\uf14f',  # documento
+    'train':       '\uf113',  # play
+    'map':         '\uf15d',  # brújula
+    'analytics':   '\uf10a',  # capas/layers
+    'settings':    '\uf136',  # llave/wrench
+    'rocket':      '\uf14b',  # cohete
+    'trash':       '\uf12f',  # tijeras / usa otro
+    'add':         '\uf100',  # círculo con +
+    'upload':      '\uf11a',  # flecha arriba
+    'star':        '\uf13f',  # favorito broken heart... usa check
+    'check':       '\uf147',  # check cuadrado
+    'warning':     '\uf104',  # !
+    'close':       '\uf14e',  # X círculo
+    'arrow_r':     '\uf119',  # flecha derecha
+    'save':        '\uf142',  # tarjeta/save
+    'refresh':     '\uf135',  # reloj/refresh
+    'info':        '\uf104',  # !
+    'layers':      '\uf10a',  # capas
+    'funnel':      '\uf443',  
+    'book':        '\uf14f',  # documento
+    'tag':         '\uf394',  
+    'pulse':       '\uf13d',  # wifi/signal
+    'code':        '\uf157',  # </>
+    'grid':        '\uf11f',  # grid
+    'flash':       '\uf138',  # bombilla
+    'download':    '\uf125',  # flecha abajo
+    'play':        '\uf113',  # play
+    'shuffle':     '\uf10c',  # pencil/edit
+    'eye':         '\uf150',  # ojo
+    'list':        '\uf143',  # lista
+    'vector':      '\uf188',  # vector
+    'mundo':       '\uf18A',  # mundo
+    'pc':          '\uf115',  # pc
+    'subir':       '\uf11b',  # subir
+    'demo':        '\uf13b',  # demo
+}
+
+# ── Paleta ────────────────────────────────────────────────────────────────────
+def hx(h): return get_color_from_hex(h)
+
 C = {
-    "bg":       get_color_from_hex("#0D0F1A"),
-    "bg2":      get_color_from_hex("#141728"),
-    "card":     get_color_from_hex("#1C2040"),
-    "card2":    get_color_from_hex("#232850"),
-    "accent":   get_color_from_hex("#7C5CBF"),
-    "accent2":  get_color_from_hex("#A87CF0"),
-    "gold":     get_color_from_hex("#F0C060"),
-    "teal":     get_color_from_hex("#4EC9C0"),
-    "rose":     get_color_from_hex("#E07090"),
-    "green":    get_color_from_hex("#60D080"),
-    "text":     get_color_from_hex("#E8E8F4"),
-    "subtext":  get_color_from_hex("#9090B0"),
-    "border":   get_color_from_hex("#2A2F55"),
-    "white":    (1, 1, 1, 1),
-    "clusters": [
-        get_color_from_hex("#FF6B9D"),
-        get_color_from_hex("#7C5CBF"),
-        get_color_from_hex("#4EC9C0"),
-        get_color_from_hex("#F0C060"),
-        get_color_from_hex("#60D080"),
-        get_color_from_hex("#FF9F43"),
-        get_color_from_hex("#54A0FF"),
-        get_color_from_hex("#EE5A24"),
+    'bg':      hx('#090b10'),
+    'bg2':     hx('#0f1219'),
+    'bg3':     hx('#161b26'),
+    'bg4':     hx('#1e2535'),
+    'cyan':    hx('#00f5e9'),
+    'violet':  hx('#9d5cff'),
+    'pink':    hx('#ff4d9e'),
+    'amber':   hx('#ffb830'),
+    'green':   hx('#39ff88'),
+    'text':    hx('#e8eaf2'),
+    'muted':   hx('#6b7499'),
+    'border':  (1, 1, 1, 0.07),
+    'clusters': [
+        hx('#00f5e9'), hx('#9d5cff'), hx('#ff4d9e'), hx('#ffb830'),
+        hx('#39ff88'), hx('#54a0ff'), hx('#ff6b6b'), hx('#ffeaa7'),
     ],
 }
 
-Window.clearcolor = C["bg"]
-IS_ANDROID = platform == "android"
-UI_SCALE = 1.08 if IS_ANDROID else 1.0
+Window.clearcolor = C['bg']
+IS_ANDROID = platform == 'android'
+session    = None  # se asigna abajo tras el import
 
-Window.minimum_width = dp(360)
-Window.minimum_height = dp(640)
-
-# ??? Sesión global ????????????????????????????????????????????????????????????
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from core.som_engine import StorySession, DEMO_STORIES
 session = StorySession()
 
-# ??? Utilidades visuales ??????????????????????????????????????????????????????
+# ── Helpers ───────────────────────────────────────────────────────────────────
+def apply_bg(w, color):
+    with w.canvas.before:
+        Color(*color)
+        r = Rectangle(pos=w.pos, size=w.size)
+    w.bind(pos=lambda ww,v: setattr(r,'pos',v),
+           size=lambda ww,v: setattr(r,'size',v))
 
-def hex_color(h):
-    return get_color_from_hex(h)
+def apply_rounded_bg(w, color, radius=dp(14)):
+    with w.canvas.before:
+        Color(*color)
+        r = RoundedRectangle(pos=w.pos, size=w.size, radius=[radius])
+    w.bind(pos=lambda ww,v: setattr(r,'pos',v),
+           size=lambda ww,v: setattr(r,'size',v))
 
-def blend(c1, c2, t):
-    """Mezcla dos colores RGBA."""
-    return tuple((a * (1 - t) + b * t) for a, b in zip(c1, c2))
-
-def animate_widget_entrance(widget, delay=0.0, dy=dp(10), duration=0.22):
-    """Animación de entrada suave para widgets.
-    BUG FIX: se difiere la captura de 'y' hasta después del layout.
-    """
-    def _start(*_):
+def slide_in(widget, delay=0, dy=dp(10), dur=0.2):
+    def _go(*_):
         try:
             widget.opacity = 0
-            oy = widget.y
-            widget.y = oy - dy
-            anim = Animation(opacity=1, y=oy, d=duration, t='out_quad')
-            anim.start(widget)
-        except Exception:
-            pass
-    Clock.schedule_once(_start, delay)
+            oy = widget.y; widget.y = oy - dy
+            Animation(opacity=1, y=oy, d=dur, t='out_quad').start(widget)
+        except: pass
+    Clock.schedule_once(_go, delay)
 
-def rgba_bg(widget, color):
-    """Aplica un fondo de color sólido a cualquier widget."""
-    with widget.canvas.before:
-        Color(*color)
-        widget._bg_rect = Rectangle(pos=widget.pos, size=widget.size)
-    widget.bind(pos=lambda w, v: setattr(w._bg_rect, 'pos', v),
-                size=lambda w, v: setattr(w._bg_rect, 'size', v))
+def lbl(text, font='Nunito-Regular', size=sp(13), color=None, bold=False,
+        halign='left', valign='middle', **kw):
+    """Label con Nunito-Regular."""
+    l = Label(text=text, font_name=font, font_size=size,
+               color=color or C['text'], bold=bold,
+               halign=halign, valign=valign, **kw)
+    l.bind(size=lambda w,v: setattr(w,'text_size',v))
+    return l
 
-def rounded_bg(widget, color, radius=dp(12)):
-    with widget.canvas.before:
-        Color(*color)
-        widget._rnd_rect = RoundedRectangle(pos=widget.pos, size=widget.size,
-                                             radius=[radius])
-    widget.bind(pos=lambda w, v: setattr(w._rnd_rect, 'pos', v),
-                size=lambda w, v: setattr(w._rnd_rect, 'size', v))
+def ico(code, size=sp(22), color=None, **kw):
+    """Label con Ionicons."""
+    l = Label(text=code, font_name='Icons', font_size=size,
+               color=color or C['cyan'], halign='center', valign='middle', **kw)
+    return l
 
+def ico_box(code, color, box_size=dp(40), ico_size=sp(20)):
+    """Caja con fondo coloreado + icono Ionicons centrado."""
+    box = BoxLayout(size_hint=(None, None), size=(box_size, box_size))
+    with box.canvas.before:
+        Color(color[0], color[1], color[2], 0.13)
+        rr = RoundedRectangle(pos=box.pos, size=box.size, radius=[dp(10)])
+    box.bind(pos=lambda w,v,r=rr: setattr(r,'pos',v),
+             size=lambda w,v,r=rr: setattr(r,'size',v))
+    box.add_widget(ico(code, size=ico_size, color=color))
+    return box
 
-class StyledButton(Button):
-    """Botón estilizado con fondo redondeado."""
-    def __init__(self, bg_color=None, text_color=None, radius=dp(10), **kwargs):
-        super().__init__(**kwargs)
+# ── Componentes base ──────────────────────────────────────────────────────────
+class NeonButton(Button):
+    def __init__(self, style='primary', text_color=None, radius=dp(10), **kw):
+        kw.setdefault('font_name', 'Nunito-Regular')
+        kw.setdefault('bold', True)
+        super().__init__(**kw)
         self.background_normal = ''
-        self.background_color = (0, 0, 0, 0)
-        self.color = text_color or C["text"]
-        self.font_size = sp(14 * UI_SCALE)
-        self._bg = bg_color or C["accent"]
-        self._base_bg = self._bg
-        self._radius = radius
+        self.background_color  = (0, 0, 0, 0)
+        self.color    = text_color or ((0.05,0.05,0.1,1) if style=='primary' else C['text'])
+        self._style   = style
+        self._radius  = radius
+        self._pressed = False
         self.bind(pos=self._draw, size=self._draw)
-        self.bind(disabled=self._on_disabled)
         Clock.schedule_once(self._draw)
 
     def _draw(self, *_):
         self.canvas.before.clear()
+        a = 0.75 if self._pressed else 1.0
+        r = self._radius
         with self.canvas.before:
-            # Sombra
-            Color(0, 0, 0, 0.25)
-            RoundedRectangle(pos=(self.x, self.y - dp(2)), size=self.size, radius=[self._radius])
-            # Fondo principal
-            Color(*self._bg)
-            RoundedRectangle(pos=self.pos, size=self.size, radius=[self._radius])
-            # Borde
-            Color(*blend(self._bg, C["white"], 0.35))
-            Line(rounded_rectangle=[self.x, self.y, self.width, self.height, self._radius], width=1)
+            if self._style == 'primary':
+                # Fondo sólido cyan
+                Color(0, 0.961*a, 0.914*a, 1)
+                RoundedRectangle(pos=self.pos, size=self.size, radius=[self._radius])
+                # Overlay violet muy sutil para darle profundidad
+                Color(0.616, 0.361, 1, 0.05)
+                RoundedRectangle(pos=self.pos, size=self.size, radius=[self._radius])
+                Color(0.04, 0.04, 0.1, 0.25)
+                RoundedRectangle(pos=self.pos, size=self.size, radius=[r])
+            elif self._style == 'outline':
+                Color(0,0.961,0.914,0.10); RoundedRectangle(pos=self.pos,size=self.size,radius=[r])
+                Color(0,0.961,0.914,0.55); Line(rounded_rectangle=[self.x,self.y,self.width,self.height,r],width=1.2)
+            elif self._style == 'danger':
+                Color(1,0.302,0.620,0.12); RoundedRectangle(pos=self.pos,size=self.size,radius=[r])
+                Color(1,0.302,0.620,0.45); Line(rounded_rectangle=[self.x,self.y,self.width,self.height,r],width=1)
+            elif self._style == 'teal':
+                Color(0,0.961,0.914,0.14); RoundedRectangle(pos=self.pos,size=self.size,radius=[r])
+                Color(0,0.961,0.914,0.60); Line(rounded_rectangle=[self.x,self.y,self.width,self.height,r],width=1)
+            elif self._style == 'sm':
+                Color(*C['bg3']); RoundedRectangle(pos=self.pos,size=self.size,radius=[r])
+                Color(*C['border']); Line(rounded_rectangle=[self.x,self.y,self.width,self.height,r],width=0.8)
+            elif self._style == 'violet':
+                Color(0.616,0.361,1,0.12); RoundedRectangle(pos=self.pos,size=self.size,radius=[r])
+                Color(0.616,0.361,1,0.55); Line(rounded_rectangle=[self.x,self.y,self.width,self.height,r],width=1.2)
 
-    def _on_disabled(self, *_):
-        self._bg = blend(self._base_bg, C["bg2"], 0.55) if self.disabled else self._base_bg
-        self._draw()
-
-    def on_press(self):
-        self._bg = blend(self._base_bg, C["white"], 0.08)
-        self._draw()
-        Animation(opacity=0.75, duration=0.05).start(self)
-
-    def on_release(self):
-        self._bg = self._base_bg
-        self._draw()
-        Animation(opacity=1.0, duration=0.1).start(self)
-
-
-class SectionTitle(Label):
-    def __init__(self, **kwargs):
-        kwargs.setdefault('font_size', sp(18))
-        kwargs.setdefault('bold', True)
-        kwargs.setdefault('color', C["accent2"])
-        kwargs.setdefault('size_hint_y', None)
-        kwargs.setdefault('height', dp(36))
-        kwargs.setdefault('halign', 'left')
-        kwargs.setdefault('valign', 'middle')
-        super().__init__(**kwargs)
-        self.bind(size=lambda w, v: setattr(w, 'text_size', v))
+    def on_press(self):   self._pressed=True;  self._draw(); Animation(opacity=0.8,d=0.05).start(self)
+    def on_release(self): self._pressed=False; self._draw(); Animation(opacity=1.0,d=0.1).start(self)
 
 
-class CardBox(BoxLayout):
-    """BoxLayout con fondo de tarjeta."""
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+class NeonCard(BoxLayout):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self._hover = False
         self.bind(pos=self._draw, size=self._draw)
         Clock.schedule_once(self._draw)
 
     def _draw(self, *_):
         self.canvas.before.clear()
         with self.canvas.before:
-            # Capa inferior (profundidad)
-            Color(0, 0, 0, 0.18)
-            RoundedRectangle(pos=(self.x, self.y - dp(2)), size=self.size, radius=[dp(12)])
-            # Fondo tarjeta
-            Color(*C["card"])
-            RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(12)])
-            # Brillo superior sutil
-            Color(1, 1, 1, 0.03)
-            RoundedRectangle(pos=(self.x, self.y + self.height * 0.5),
-                             size=(self.width, self.height * 0.5), radius=[dp(12)])
-            Color(*C["border"])
-            Line(rounded_rectangle=[self.x, self.y, self.width, self.height, dp(12)], width=1)
+            Color(*C['bg2']); RoundedRectangle(pos=self.pos,size=self.size,radius=[dp(14)])
+            Color(*(0,0.961,0.914,0.22) if self._hover else C['border'])
+            Line(rounded_rectangle=[self.x,self.y,self.width,self.height,dp(14)],width=1)
+
+    def on_touch_down(self,t):
+        if self.collide_point(*t.pos): self._hover=True; self._draw()
+        return super().on_touch_down(t)
+    def on_touch_up(self,t):
+        self._hover=False; self._draw(); return super().on_touch_up(t)
 
 
-# ??? PANTALLA: Bienvenida ?????????????????????????????????????????????????????
-
-class WelcomeScreen(Screen):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._stars = []
-        self._time = 0
-        self._build_ui()
-        Clock.schedule_interval(self._animate, 1/30)
-        # Efecto typewriter de bienvenida (sin emojis)
-        self._greet_text = "Hola -- soy MapBot. Te acompano en la exploracion [>>]"
-        self._greet_idx = 0
-        self._greet_event = None
-        Clock.schedule_once(self._start_greeting, 0.6)
-
-    def _start_greeting(self, *_):
-        self._greet_event = Clock.schedule_interval(self._type_greeting, 0.04)
-
-    def on_enter(self, *a):
-        # Pequeño glow en el botón principal al entrar
-        for w in self.walk(restrict=False):
-            if isinstance(w, StyledButton) and w.text and 'EXPLORAR' in w.text:
-                orig = w._base_bg
-                def glow(btn=w):
-                    btn._bg = C['accent2']
-                    btn._draw()
-                def unglow(btn=w, o=orig):
-                    btn._bg = o
-                    btn._draw()
-                Clock.schedule_once(lambda *_: glow(), 0.02)
-                Clock.schedule_once(lambda *_: unglow(), 0.4)
-                break
-        if hasattr(self, 'personality') and self.personality:
-            self.personality.opacity = 0
-            Animation(opacity=1, d=0.35, t='out_quad').start(self.personality)
-
-    def _build_ui(self):
-        # BUG FIX: usar BoxLayout como root en lugar de FloatLayout para que
-        # el layout sea predecible sin necesitar pos_hint en cada widget.
-        root = BoxLayout(orientation='vertical', padding=dp(24 * UI_SCALE),
-                         spacing=dp(14 * UI_SCALE))
-        rgba_bg(root, C["bg"])
-
-        # Canvas de partículas (widget flotante encima)
-        self._canvas_widget = Widget(size_hint=(1, 1), pos=(0, 0))
-        # Se agrega al Screen directamente para que quede "detrás" del contenido visual
-        # pero animado independientemente
-        self.add_widget(self._canvas_widget)
-
-        # Logo / título
-        title_box = BoxLayout(orientation='vertical', size_hint_y=None,
-                              height=dp(140), spacing=dp(6))
-
-        # BUG FIX: reemplazado emoji por símbolo unicode
-        icon_lbl = Label(
-            text="SOM",  # icono principal
-            font_size=sp(64 * UI_SCALE),
-            size_hint_y=None, height=dp(80),
-            color=C["accent2"],
-        )
-        title_box.add_widget(icon_lbl)
-
-        title = Label(
-            text="[b]StoryMap SOM[/b]",
-            markup=True,
-            font_size=sp(30 * UI_SCALE),
-            color=C["accent2"],
-            size_hint_y=None, height=dp(44),
-        )
-        title_box.add_widget(title)
-        root.add_widget(title_box)
-
-        # Subtítulo
-        sub = Label(
-            text="[i]Explorador Visual de Textos\nmediante Self-Organizing Maps[/i]",
-            markup=True,
-            font_size=sp(14 * UI_SCALE),
-            color=C["subtext"],
-            halign='center',
-            size_hint_y=None, height=dp(48),
-        )
-        sub.bind(size=lambda w, v: setattr(w, 'text_size', v))
-        root.add_widget(sub)
-
-        # Autores -- BUG FIX: emoji de persona reemplazado por símbolo
-        authors = Label(
-            text=">>  Santiago Castaneda  .  Santiago Florez\n"
-                 "Computacion Blanda -- Proyecto Final",
-            font_size=sp(12 * UI_SCALE),
-            color=C["gold"],
-            halign='center',
-            size_hint_y=None, height=dp(46),
-        )
-        authors.bind(size=lambda w, v: setattr(w, 'text_size', v))
-        root.add_widget(authors)
-
-        root.add_widget(Widget(size_hint_y=None, height=dp(8)))
-
-        # Info cards
-        info_scroll = ScrollView(size_hint=(1, None), height=dp(130))
-        info_grid = GridLayout(cols=2, spacing=dp(8), size_hint_y=None, padding=[0, 4])
-        info_grid.bind(minimum_height=info_grid.setter('height'))
-
-        # BUG FIX: todos los iconos son texto ASCII/unicode
-        features = [
-            ("*", "Self-Organizing Map\n(Red de Kohonen)"),
-            ("=", "Vectores TF-IDF\ncon NLP"),
-            ("(o)", "Clustering K-Means\nautomatico"),
-            ("[F]", "Carga archivos .txt\ndesde el dispositivo"),
-        ]
-        for icon, text in features:
-            card = CardBox(orientation='vertical', padding=dp(10), spacing=dp(4),
-                           size_hint_y=None, height=dp(56))
-            card.add_widget(Label(text=f"{icon} {text}", font_size=sp(11),
-                                   color=C["text"], halign='center', markup=False))
-            info_grid.add_widget(card)
-
-        info_scroll.add_widget(info_grid)
-        root.add_widget(info_scroll)
-
-        root.add_widget(Widget(size_hint_y=1))
-
-        # Botón principal
-        btn_main = StyledButton(
-            text=">> EXPLORAR AHORA",
-            bg_color=C["accent"],
-            size_hint=(0.85, None),
-            height=dp(52),
-            pos_hint={'center_x': 0.5},
-            font_size=sp(16 * UI_SCALE),
-            bold=True,
-        )
-        btn_main.bind(on_press=lambda *_: self._go_main())
-        root.add_widget(btn_main)
-
-        # Personalidad: etiqueta typewriter
-        self.personality = Label(
-            text="",
-            font_size=sp(12 * UI_SCALE), color=C["teal"],
-            size_hint_y=None, height=dp(22), halign='center'
-        )
-        self.personality.bind(size=lambda w, v: setattr(w, 'text_size', v))
-        root.add_widget(self.personality)
-
-        # Botón demo
-        btn_demo = StyledButton(
-            text="Cargar Demo (12 cuentos)",
-            bg_color=C["teal"],
-            text_color=(0.05, 0.1, 0.1, 1),
-            size_hint=(0.85, None),
-            height=dp(44),
-            pos_hint={'center_x': 0.5},
-            font_size=sp(13 * UI_SCALE),
-        )
-        btn_demo.bind(on_press=lambda *_: self._load_demo())
-        root.add_widget(btn_demo)
-
-        root.add_widget(Widget(size_hint_y=None, height=dp(16)))
-        self.add_widget(root)
-
-        # Animaciones de entrada (diferidas para que el layout ya esté listo)
-        for i, w in enumerate([title_box, sub, authors, info_scroll, btn_main,
-                                self.personality, btn_demo]):
-            animate_widget_entrance(w, delay=0.08 + 0.05 * i)
-
-    def _go_main(self):
-        self.manager.transition = SlideTransition(direction='left', duration=0.3)
-        self.manager.current = 'main'
-
-    def _load_demo(self):
-        session.clear()
-        for title, text in DEMO_STORIES:
-            session.add_document(title, text)
-        popup = Popup(
-            title='[OK] Demo cargado',
-            content=Label(
-                text=f"Se cargaron [b]{len(DEMO_STORIES)} cuentos clasicos[/b].\n\n"
-                     "Ve a la seccion de [b]Documentos[/b] para ver\n"
-                     "la lista, o a [b]Entrenar SOM[/b] para comenzar.",
-                markup=True, halign='center', color=C["text"]
-            ),
-            size_hint=(0.85, 0.38),
-            background_color=C["card"],
-        )
-        popup.open()
-        Clock.schedule_once(lambda *_: popup.dismiss(), 3)
-        self.manager.transition = SlideTransition(direction='left', duration=0.3)
-        self.manager.current = 'main'
-
-    def _animate(self, dt):
-        self._time += dt
-        w = self._canvas_widget
-        if random.random() < 0.3 and len(self._stars) < 20:
-            self._stars.append({
-                'x': random.random(), 'y': random.random(),
-                'r': random.uniform(1, 3), 'a': random.uniform(0.3, 1.0),
-                'speed': random.uniform(0.2, 0.6),
-            })
-        w.canvas.clear()
-        with w.canvas:
-            for star in self._stars:
-                star['y'] -= star['speed'] * dt / w.height if w.height > 0 else 0
-                if star['y'] < 0:
-                    star['y'] = 1
-                alpha = star['a'] * (0.6 + 0.4 * math.sin(self._time * 2))
-                Color(1, 1, 1, alpha)
-                Ellipse(
-                    pos=(star['x'] * w.width - star['r'], star['y'] * w.height - star['r']),
-                    size=(star['r'] * 2, star['r'] * 2)
-                )
-
-    def _type_greeting(self, dt):
-        """Efecto typewriter para el saludo inicial.
-        BUG FIX: retorna False para cancelar el schedule_interval al terminar.
-        """
-        if not hasattr(self, 'personality') or self.personality is None:
-            return False
-        if self._greet_idx >= len(self._greet_text):
-            return False  # Kivy cancela el interval al recibir False
-        self._greet_idx += 1
-        self.personality.text = self._greet_text[:self._greet_idx]
-        return True  # continuar
+class Badge(Label):
+    _MAP = {
+        'cyan':   (hx('#00f5e9'),(0,0.961,0.914,0.10),(0,0.961,0.914,0.28)),
+        'violet': (hx('#9d5cff'),(0.616,0.361,1,0.10),(0.616,0.361,1,0.28)),
+        'green':  (hx('#39ff88'),(0.224,1,0.533,0.10),(0.224,1,0.533,0.28)),
+        'amber':  (hx('#ffb830'),(1,0.722,0.188,0.10),(1,0.722,0.188,0.28)),
+        'pink':   (hx('#ff4d9e'),(1,0.302,0.620,0.10),(1,0.302,0.620,0.28)),
+    }
+    def __init__(self, color_key='cyan', **kw):
+        tc,self._bg,self._bc = self._MAP.get(color_key,self._MAP['cyan'])
+        kw.setdefault('color', tc)
+        kw.setdefault('font_name', 'Nunito-Regular')
+        kw.setdefault('font_size', sp(9))
+        kw.setdefault('size_hint', (None,None))
+        kw.setdefault('height', dp(20))
+        super().__init__(**kw)
+        self.bind(texture_size=lambda w,v: setattr(w,'width',v[0]+dp(16)))
+        self.bind(pos=self._draw, size=self._draw)
+        Clock.schedule_once(self._draw)
+    def _draw(self,*_):
+        self.canvas.before.clear()
+        with self.canvas.before:
+            Color(*self._bg); RoundedRectangle(pos=self.pos,size=self.size,radius=[dp(10)])
+            Color(*self._bc); Line(rounded_rectangle=[self.x,self.y,self.width,self.height,dp(10)],width=0.8)
 
 
-# ??? PANTALLA: Principal (menú lateral) ??????????????????????????????????????
+class ColorDot(Widget):
+    def __init__(self,color,**kw):
+        super().__init__(**kw); self._color=color
+        self.bind(pos=self._draw,size=self._draw); Clock.schedule_once(self._draw)
+    def _draw(self,*_):
+        self.canvas.clear()
+        with self.canvas: Color(*self._color); Ellipse(pos=self.pos,size=self.size)
 
-class MainScreen(Screen):
-    current_tab = StringProperty('documents')
+def section_title(text):
+    return lbl(text.upper(), size=sp(9), color=C['muted'],
+                size_hint_y=None, height=dp(26))
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._build_ui()
+def make_header(title_text, sub_text, icon_code=None):
+    hdr = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(58),
+                    padding=[dp(16),dp(8)], spacing=dp(2))
+    apply_bg(hdr, C['bg2'])
+    with hdr.canvas.after:
+        Color(*C['border']); hdr._bl = Line(points=[0,0,0,0], width=1)
+    def _u(*_): hdr._bl.points = [hdr.x,hdr.y,hdr.x+hdr.width,hdr.y]
+    hdr.bind(pos=_u, size=_u)
 
-    def _build_ui(self):
+    tr = BoxLayout(size_hint_y=None, height=dp(28), spacing=dp(8))
+    if icon_code:
+        tr.add_widget(ico(icon_code, size=sp(20), color=C['cyan'],
+                           size_hint_x=None, width=dp(26)))
+    tr.add_widget(lbl(title_text, size=sp(18), color=C['cyan'], bold=True,
+                       size_hint_y=None, height=dp(28)))
+    hdr.add_widget(tr)
+    hdr.add_widget(lbl(sub_text, size=sp(11), color=C['muted'],
+                        size_hint_y=None, height=dp(16)))
+    return hdr
+
+# ── StatusBar ─────────────────────────────────────────────────────────────────
+class StatusBar(BoxLayout):
+    def __init__(self,**kw):
+        kw.setdefault('size_hint_y',None); kw.setdefault('height',dp(26))
+        kw.setdefault('padding',[dp(16),0])
+        super().__init__(**kw)
+        apply_bg(self,C['bg2'])
+        self.add_widget(lbl('9:41',size=sp(9),color=C['muted'],
+                              size_hint_x=None,width=dp(40)))
+        self.add_widget(Widget())
+        row = BoxLayout(size_hint_x=None,width=dp(56),spacing=dp(6))
+        row.add_widget(ico(II['flash'],size=sp(12),color=C['muted'],size_hint_x=None,width=dp(14)))
+        row.add_widget(ico(II['eye'],  size=sp(12),color=C['muted'],size_hint_x=None,width=dp(14)))
+        self.add_widget(row)
+
+# ── NavBar ────────────────────────────────────────────────────────────────────
+class NavBar(BoxLayout):
+    TABS = [
+        ('welcome',  'Inicio',  II['home']),
+        ('docs',     'Docs',    II['docs']),
+        ('train',    'Entrena', II['train']),
+        ('map',      'Mapa',    II['map']),
+        ('analysis', 'Stats',   II['analytics']),
+        ('config',   'Config',  II['settings']),
+    ]
+
+    def __init__(self, on_tab=None, **kw):
+        kw.setdefault('size_hint_y',None); kw.setdefault('height',dp(64))
+        super().__init__(**kw)
+        self._on_tab = on_tab; self._current = 'welcome'; self._items = {}
+        apply_bg(self,C['bg2'])
+        with self.canvas.before:
+            Color(*C['border']); self._tl = Line(points=[0,0,0,0],width=1)
+        self.bind(pos=self._upd,size=self._upd)
+        self._build()
+
+    def _upd(self,*_):
+        self._tl.points=[self.x,self.y+self.height,self.x+self.width,self.y+self.height]
+
+    def _build(self):
+        for key, label_text, icon_code in self.TABS:
+            col = BoxLayout(orientation='vertical', spacing=dp(1), padding=[0,dp(5)])
+            col._key = key
+
+            # Indicador superior activo
+            ind = Widget(size_hint_y=None, height=dp(3))
+            col._ind = ind; col.add_widget(ind)
+
+            # Icono Ionicons
+            icon_lbl = ico(icon_code, size=sp(22), color=C['muted'],
+                            size_hint_y=None, height=dp(26))
+            col._ico = icon_lbl; col.add_widget(icon_lbl)
+
+            # Texto con Nunito-Regular
+            txt = lbl(label_text, size=sp(8), color=C['muted'],
+                       halign='center', size_hint_y=None, height=dp(14))
+            col._txt = txt; col.add_widget(txt)
+
+            col.bind(on_touch_down=lambda w,t: self._hit(w,t))
+            self._items[key] = col; self.add_widget(col)
+
+    def _hit(self, box, touch):
+        if box.collide_point(*touch.pos):
+            self.set_active(box._key)
+            if self._on_tab: self._on_tab(box._key)
+
+    def set_active(self, key):
+        self._current = key
+        for k, item in self._items.items():
+            active = (k == key)
+            color  = C['cyan'] if active else C['muted']
+            item._ico.color = color
+            item._txt.color = color
+            item._ind.canvas.clear()
+            with item._ind.canvas:
+                if active:
+                    Color(*C['cyan'])
+                    RoundedRectangle(pos=item._ind.pos,size=item._ind.size,radius=[dp(2)])
+
+# ── AppShell ──────────────────────────────────────────────────────────────────
+class AppShell(Screen):
+    def __init__(self,**kw):
+        super().__init__(**kw)
+        apply_bg(self,C['bg'])
+        self._current_tab = 'welcome'; self._build()
+
+    def _build(self):
         root = BoxLayout(orientation='vertical')
-        rgba_bg(root, C["bg"])
-
-        # ?? Barra superior
-        # BUG FIX: se usa un método _draw_bar separado y limpio en lugar de
-        # bind con lambda anidado que acumulaba callbacks.
-        topbar = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(52),
-                           padding=[dp(12), dp(6)], spacing=dp(8))
-        self._topbar = topbar
-        self._apply_bar_bg(topbar, C["bg2"])
-
-        back_btn = StyledButton(text="<", bg_color=C["card"],
-                                size_hint=(None, 1), width=dp(40), font_size=sp(18))
-        back_btn.bind(on_press=lambda *_: self._go_back())
-        topbar.add_widget(back_btn)
-
-        self.screen_title = Label(text="[b]StoryMap SOM[/b]", markup=True,
-                                   font_size=sp(17), color=C["accent2"],
-                                   halign='left', valign='middle')
-        self.screen_title.bind(size=lambda w, v: setattr(w, 'text_size', v))
-        topbar.add_widget(self.screen_title)
-
-        info_btn = StyledButton(text="i", bg_color=C["card2"],
-                                size_hint=(None, 1), width=dp(40), font_size=sp(16))
-        info_btn.bind(on_press=lambda *_: self._show_about())
-        topbar.add_widget(info_btn)
-
-        root.add_widget(topbar)
-
-        # ?? Navegación horizontal (tabs)
-        nav = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(46),
-                        padding=[dp(6), dp(4)], spacing=dp(6))
-        self._nav = nav
-        self._apply_bar_bg(nav, C["bg2"])
-
-        self._tab_btns = {}
-        tabs = [
-            ('documents', 'Docs'),
-            ('train',     'Entrenar'),
-            ('map',       'Mapa'),
-            ('analysis',  'Analisis'),
-            ('settings',  'Config'),
-        ]
-        for key, label in tabs:
-            btn = StyledButton(
-                text=label,
-                bg_color=C["accent"] if key == self.current_tab else C["card"],
-                font_size=sp(11),
-                size_hint=(1, 1),
-            )
-            btn.bind(on_press=lambda _, k=key: self._switch_tab(k))
-            self._tab_btns[key] = btn
-            nav.add_widget(btn)
-
-        root.add_widget(nav)
-
-        # ?? Contenido principal (cambia según tab)
-        self.content_area = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
-        root.add_widget(self.content_area)
-
-        self.add_widget(root)
-        self._load_tab('documents')
-
-    def _apply_bar_bg(self, widget, color):
-        """Aplica y mantiene fondo de barra sin acumular callbacks.
-        BUG FIX: un solo bind con redraw directo, sin Clock.schedule_once anidado.
-        """
-        with widget.canvas.before:
-            _c = Color(*color)
-            _r = Rectangle(pos=widget.pos, size=widget.size)
-        widget.bind(
-            pos=lambda w, v: setattr(_r, 'pos', v),
-            size=lambda w, v: setattr(_r, 'size', v),
-        )
-
-    def _go_back(self):
-        self.manager.transition = SlideTransition(direction='right', duration=0.3)
-        self.manager.current = 'welcome'
+        self.statusbar = StatusBar(); root.add_widget(self.statusbar)
+        self.content   = BoxLayout(orientation='vertical'); root.add_widget(self.content)
+        self.navbar    = NavBar(on_tab=self._switch_tab); root.add_widget(self.navbar)
+        self.add_widget(root); self._load_tab('welcome')
 
     def _switch_tab(self, key):
-        if key == self.current_tab:
-            return
-        self.current_tab = key
-        for k, btn in self._tab_btns.items():
-            btn._bg = C["accent"] if k == key else C["card"]
-            btn._base_bg = btn._bg
-            btn._draw()
-        self.content_area.opacity = 0
-        self._load_tab(key)
-        Animation(opacity=1, d=0.16, t='out_quad').start(self.content_area)
+        if key == self._current_tab: return
+        self._current_tab = key; self.navbar.set_active(key)
+        self.content.opacity = 0; self._load_tab(key)
+        Animation(opacity=1, d=0.18, t='out_quad').start(self.content)
 
     def _load_tab(self, key):
-        self.content_area.clear_widgets()
-        titles = {
-            'documents': 'Documentos',
-            'train':     'Entrenar SOM',
-            'map':       'Mapa SOM',
-            'analysis':  'Analisis',
-            'settings':  'Configuracion',
-        }
-        self.screen_title.text = f"[b]{titles.get(key, 'StoryMap')}[/b]"
+        self.content.clear_widgets()
+        cls = {'welcome':WelcomeTab,'docs':DocsTab,'train':TrainTab,
+               'map':MapTab,'analysis':AnalysisTab,'config':ConfigTab}.get(key,WelcomeTab)
+        self.content.add_widget(cls(shell=self))
 
-        if key == 'documents':
-            self.content_area.add_widget(DocumentsTab())
-        elif key == 'train':
-            self.content_area.add_widget(TrainTab())
-        elif key == 'map':
-            self.content_area.add_widget(MapTab())
-        elif key == 'analysis':
-            self.content_area.add_widget(AnalysisTab())
-        elif key == 'settings':
-            self.content_area.add_widget(SettingsTab())
+# ── Partículas ────────────────────────────────────────────────────────────────
+class ParticleWidget(Widget):
+    def __init__(self,**kw):
+        super().__init__(**kw); self._t=0
+        self._pts=[{'x':random.random(),'y':random.random(),
+                     'vx':(random.random()-.5)*.12,'vy':(random.random()-.5)*.12,
+                     'r':random.uniform(1,2.5),
+                     'c':random.choice([(0,.961,.914),(.616,.361,1),(1,.302,.62)])}
+                   for _ in range(30)]
+        Clock.schedule_interval(self._tick,1/30)
 
-    def _show_about(self):
-        content = BoxLayout(orientation='vertical', padding=dp(16), spacing=dp(8))
-        content.add_widget(Label(
-            text="[b]StoryMap SOM v1.0[/b]\n\n"
-                 "[b]Autores:[/b] Santiago Castaneda\n"
-                 "              Santiago Florez\n\n"
-                 "[b]Tecnica IA:[/b] Self-Organizing Map\n"
-                 "(Red de Kohonen, 1982)\n\n"
-                 "[b]NLP:[/b] TF-IDF + Clustering K-Means\n\n"
-                 "[b]Framework:[/b] Kivy + Python 3.11\n\n"
-                 "Computacion Blanda -- 2024",
-            markup=True, font_size=sp(13), color=C["text"],
-            halign='center', valign='top',
-        ))
-        btn = StyledButton(text="Cerrar", bg_color=C["accent"],
-                           size_hint_y=None, height=dp(40))
-        content.add_widget(btn)
-        popup = Popup(title='Acerca de StoryMap SOM',
-                      content=content, size_hint=(0.88, 0.7),
-                      background_color=C["card"])
-        btn.bind(on_press=popup.dismiss)
-        popup.open()
+    def _tick(self,dt):
+        self._t+=dt
+        for p in self._pts:
+            p['x']+=p['vx']*dt; p['y']+=p['vy']*dt
+            if p['x']<0 or p['x']>1: p['vx']*=-1
+            if p['y']<0 or p['y']>1: p['vy']*=-1
+        self._redraw()
 
+    def _redraw(self):
+        self.canvas.clear()
+        w=self.width or 1; h=self.height or 1
+        ox=self.x; oy=self.y  # offset absoluto del widget
+        with self.canvas:
+            for p in self._pts:
+                a=.45+.35*math.sin(self._t*2+p['x']*5)
+                Color(p['c'][0],p['c'][1],p['c'][2],a)
+                r=p['r']
+                Ellipse(pos=(ox+p['x']*w-r, oy+p['y']*h-r+dp(350)),size=(r*3,r*3))
+            for i,a in enumerate(self._pts):
+                for b in self._pts[i+1:]:
+                    dx=(a['x']-b['x'])*w; dy=(a['y']-b['y'])*h
+                    d=math.sqrt(dx*dx+dy*dy)
+                    if d<55:
+                        Color(0,.961,.914,.12*(1-d/55))
+                        Line(points=[ox+a['x']*w, oy+a['y']*h+dp(350),
+                        ox+b['x']*w, oy+b['y']*h+dp(350)], width=1.5)
 
-# ??? TAB: Documentos ??????????????????????????????????????????????????????????
+# ── WelcomeTab ────────────────────────────────────────────────────────────────
+class WelcomeTab(BoxLayout):
+    def __init__(self,shell=None,**kw):
+        super().__init__(orientation='vertical',**kw)
+        self._shell=shell; self._build()
 
-class DocumentsTab(BoxLayout):
-    def __init__(self, **kwargs):
-        super().__init__(orientation='vertical', spacing=dp(8), **kwargs)
-        self._build()
+    def _build(self):
+        hero = FloatLayout(size_hint_y=None, height=dp(220))
+        with hero.canvas.before:
+            Color(*C['bg2'])
+            _hbg = Rectangle(pos=hero.pos, size=hero.size)
+            Color(.616,.361,1,.20)
+            _e1 = RoundedRectangle(pos=(0,0), size=(1,1))
+            Color(0,.961,.914,.10)
+            _e2 = RoundedRectangle(pos=(0,0), size=(1,1))
+        def _upd_hero(w, *_):
+            _hbg.pos = w.pos; _hbg.size = w.size
+            ew1 = w.width*0.8; eh1 = w.height*0.8
+            _e1.pos = (w.x + (w.width-ew1)/2, w.y + (w.height-eh1)/1 - dp(10))
+            _e1.size = (ew1, eh1); _e1.radius = [dp(30)]
+            ew2 = w.width*0.7; eh2 = w.height*0.6
+            _e2.pos = (w.x + (w.width-ew1)/1.3, w.y + (w.height-eh1)/0.65 - dp(10))
+            _e2.size = (ew2, eh2); _e2.radius = [dp(30)]
+        hero.bind(pos=_upd_hero, size=_upd_hero)
+
+        # Particulas detras del logo — size_hint=(1,1) para llenar el hero
+        particles = ParticleWidget(size_hint=(1,1))
+        hero.add_widget(particles)
+
+        # Logo: imagen a la izquierda del card, ambos en horizontal
+        outer_box = BoxLayout(orientation='vertical', spacing=dp(4),
+                              size_hint=(None,None), size=(dp(300),dp(90)),
+                              pos_hint={'center_x':.58,'center_y':.55})
+
+        # Fila horizontal: imagen | card con titulo
+        logo_row = BoxLayout(orientation='horizontal', spacing=dp(8),
+                             size_hint_y=None, height=dp(80))
+
+        # Imagen a la izquierda, fuera del rectangulo
+        logo_ico = Image(
+                        source='cuento.png',
+                        size_hint=(None,None),
+                        size=(dp(60),dp(60)),
+                        fit_mode='contain',
+                        pos_hint={'center_y':.58}
+                    )
+        logo_row.add_widget(logo_ico)
+
+        # Card con solo el titulo a la derecha
+        logo_card = BoxLayout(size_hint=(1,None), height=dp(72),
+                               padding=[dp(10),dp(6)], spacing=dp(10))
+        
+
+        title_col=BoxLayout(orientation='vertical',spacing=dp(2))
+        title_col.add_widget(lbl('StoryMap', font='Orbitron',size=sp(24),color=C['cyan'],bold=True))
+        title_col.add_widget(lbl('SOM Engine',font='Orbitron',size=sp(10),color=C['muted']))
+        logo_card.add_widget(title_col)
+        logo_row.add_widget(logo_card)
+
+        outer_box.add_widget(logo_row)
+        outer_box.add_widget(lbl('Explorador visual de textos con IA',
+                                 size=sp(10),font='Orbitron',color=C['muted'],halign='center',
+                                 size_hint_y=(5,None),height=dp(20)))
+        logo_box = outer_box
+        hero.add_widget(logo_box)
+        self.add_widget(hero)
+
+        # Stats
+        stats=BoxLayout(size_hint_y=None,height=dp(58),padding=[dp(16),dp(6)],spacing=dp(10))
+        apply_bg(stats,C['bg'])
+        for val,label_text,color in [('12','Cuentos',C['cyan']),
+                                      ('8x8','Grilla',C['violet']),
+                                      ('500','Epocas',C['pink'])]:
+            col=BoxLayout(orientation='vertical',spacing=dp(2))
+            col.add_widget(lbl(val,size=sp(18),color=color,bold=True,halign='center'))
+            col.add_widget(lbl(label_text,size=sp(9),color=C['muted'],halign='center'))
+            stats.add_widget(col)
+        self.add_widget(stats)
+
+        # Features
+        
+        scroll=ScrollView(size_hint=(1,1))
+        inner=BoxLayout(orientation='vertical',spacing=dp(8),
+                         padding=[dp(14),dp(6)],size_hint_y=None)
+        inner.bind(minimum_height=inner.setter('height'))
+
+        features=[
+            (II['shuffle'], C['cyan'],   'SOM de Kohonen',      'Red neuronal auto-organizada'),
+            (II['vector'],    C['violet'], 'Vectores TF-IDF',     'Representacion semantica NLP'),
+            (II['mundo'],    C['pink'],   'Mapa 2D interactivo', 'U-Matrix + clusters K-Means'),
+            (II['pc'],   C['amber'],  'Computacion Blanda',  'Santiago C. & Santiago F.'),
+        ]
+        for i,(icon_code,color,tt,st) in enumerate(features):
+            row=BoxLayout(size_hint_y=None,height=dp(52),spacing=dp(12))
+            row.add_widget(ico_box(icon_code,color))
+            col=BoxLayout(orientation='vertical',spacing=dp(2))
+            col.add_widget(lbl(tt,size=sp(12),bold=True))
+            col.add_widget(lbl(st,size=sp(10),color=C['muted']))
+            row.add_widget(col)
+            inner.add_widget(row); slide_in(row,delay=0.06*i)
+
+        inner.add_widget(Widget(size_hint_y=None,height=dp(10)))
+
+        # Boton con icono Ionicons incrustado
+        btn_row=BoxLayout(size_hint_y=None,height=dp(48),spacing=dp(8))
+        btn=NeonButton(text='Comenzar',style='primary',
+                        text_color=(0.05,0.05,0.1,1),font_size=sp(14))
+        btn.bind(on_press=lambda *_: self._shell._switch_tab('docs') if self._shell else None)
+        btn_row.add_widget(btn)
+        inner.add_widget(btn_row)
+        inner.add_widget(Widget(size_hint_y=None,height=dp(8)))
+        scroll.add_widget(inner); self.add_widget(scroll)
+        slide_in(btn_row,delay=0.28)
+
+# ── DocsTab ───────────────────────────────────────────────────────────────────
+class DocsTab(BoxLayout):
+    def __init__(self,shell=None,**kw):
+        super().__init__(orientation='vertical',**kw)
+        self._shell=shell; self._build()
 
     def _build(self):
         self.clear_widgets()
+        self.add_widget(make_header('Documentos','Textos cargados para analizar',II['docs']))
 
-        # Barra de acciones
-        action_bar = BoxLayout(orientation='horizontal', size_hint_y=None,
-                               height=dp(42), spacing=dp(6))
+        act=BoxLayout(size_hint_y=None,height=dp(44),padding=[dp(10),dp(5)],spacing=dp(6))
+        apply_bg(act,C['bg'])
 
-        btn_add = StyledButton(text="+ Agregar texto", bg_color=C["accent"],
-                               size_hint=(1, 1), font_size=sp(12))
-        btn_add.bind(on_press=lambda *_: self._show_add_popup())
-        action_bar.add_widget(btn_add)
+        def _icon_action_btn(icon_code,text_t,style,tc,cb,w=dp(96)):
+            b=BoxLayout(size_hint=(None,1),width=w)
+            with b.canvas.before:
+                if style=='teal':
+                    Color(0,0.961,0.914,0.12); RoundedRectangle(pos=b.pos,size=b.size,radius=[dp(9)])
+                    Color(0,0.961,0.914,0.5); rr=RoundedRectangle(pos=b.pos,size=b.size,radius=[dp(9)])
+                else:
+                    Color(*C['bg3']); rr=RoundedRectangle(pos=b.pos,size=b.size,radius=[dp(9)])
+                Color(*C['border']); ln=Line(rounded_rectangle=[*b.pos,*b.size,dp(9)],width=0.8)
+            def _up(w2,v): rr.pos=v; ln.rounded_rectangle=[*v,*w2.size,dp(9)]
+            def _us(w2,v): rr.size=v; ln.rounded_rectangle=[*w2.pos,*v,dp(9)]
+            b.bind(pos=_up,size=_us)
+            b.add_widget(ico(icon_code,size=sp(15),color=tc,size_hint_x=None,width=dp(20)))
+            t=lbl(text_t,size=sp(11),color=tc)
+            b.add_widget(t)
+            b.bind(on_touch_down=lambda w2,ev: cb() if w2.collide_point(*ev.pos) else None)
+            return b
 
-        btn_file = StyledButton(text="Cargar .txt", bg_color=C["card2"],
-                                size_hint=(1, 1), font_size=sp(12))
-        btn_file.bind(on_press=lambda *_: self._load_file_popup())
-        action_bar.add_widget(btn_file)
+        act.add_widget(_icon_action_btn(II['add'],   'Nuevo', 'sm',   C['text'], self._popup_add))
+        act.add_widget(_icon_action_btn(II['subir'],'Cargar',  'sm',   C['text'], self._popup_file))
+        act.add_widget(_icon_action_btn(II['demo'],  'Demo',  'teal', C['cyan'], self._load_demo))
+        act.add_widget(Widget())
+        n=len(session.documents); ready=n>=2
+        act.add_widget(Badge(color_key='green' if ready else 'amber',
+                              text='Listo' if ready else f'{n} docs',
+                              size_hint=(None,None),height=dp(24)))
+        self.add_widget(act)
 
-        btn_demo = StyledButton(text="Demo", bg_color=C["teal"],
-                                text_color=(0.05, 0.1, 0.1, 1),
-                                size_hint=(None, 1), width=dp(72), font_size=sp(12))
-        btn_demo.bind(on_press=lambda *_: self._load_demo())
-        action_bar.add_widget(btn_demo)
+        scroll=ScrollView(size_hint=(1,1))
+        grid=GridLayout(cols=1,spacing=dp(6),padding=[dp(10),dp(6)],size_hint_y=None)
+        grid.bind(minimum_height=grid.setter('height'))
 
-        btn_clear = StyledButton(text="Del", bg_color=C["rose"],
-                                  size_hint=(None, 1), width=dp(44), font_size=sp(16))
-        btn_clear.bind(on_press=lambda *_: self._confirm_clear())
-        action_bar.add_widget(btn_clear)
-
-        self.add_widget(action_bar)
-        animate_widget_entrance(action_bar, delay=0.02)
-
-        # Contador
-        n = len(session.documents)
-        ready = n >= 2
-        _ready_str = "[OK] Listo para entrenar" if ready else "[!] Minimo 2 documentos"
-        self.counter_lbl = Label(
-            text=f"[b]{n}[/b] documento{'s' if n != 1 else ''}  -  {_ready_str}",
-            markup=True, font_size=sp(12),
-            color=C["green"] if ready else C["gold"],
-            size_hint_y=None, height=dp(28), halign='left', valign='middle',
-        )
-        self.counter_lbl.bind(size=lambda w, v: setattr(w, 'text_size', v))
-        self.add_widget(self.counter_lbl)
-        animate_widget_entrance(self.counter_lbl, delay=0.04)
-
-        # Lista de documentos
-        scroll = ScrollView(size_hint=(1, 1))
-        self.doc_list = GridLayout(cols=1, spacing=dp(6), size_hint_y=None, padding=[0, 4])
-        self.doc_list.bind(minimum_height=self.doc_list.setter('height'))
-
+        BKEYS=['cyan','violet','pink','amber','green']
         if not session.documents:
-            empty = Label(
-                text="Sin documentos.\nAgrega textos o carga el demo para comenzar.",
-                font_size=sp(13), color=C["subtext"],
-                halign='center', valign='middle',
-                size_hint_y=None, height=dp(120),
-            )
-            empty.bind(size=lambda w, v: setattr(w, 'text_size', v))
-            self.doc_list.add_widget(empty)
+            c=NeonCard(orientation='vertical',padding=dp(22),spacing=dp(10),
+                        size_hint_y=None,height=dp(120))
+            c.add_widget(ico(II['list'],size=sp(36),color=C['muted']))
+            c.add_widget(lbl('Sin documentos.\nAgrega textos o carga el demo.',
+                              size=sp(12),color=C['muted'],halign='center'))
+            grid.add_widget(c)
         else:
-            for i, (title, text) in enumerate(zip(session.titles, session.documents)):
-                self._add_doc_card(i, title, text)
+            for i,(title,text) in enumerate(zip(session.titles,session.documents)):
+                row=BoxLayout(size_hint_y=None,height=dp(64),spacing=dp(8))
+                card=NeonCard(orientation='horizontal',padding=[dp(10),dp(8)],
+                               spacing=dp(10),size_hint=(1,1))
+                clr=C['clusters'][i%len(C['clusters'])]
+                # Barra lateral
+                bar=Widget(size_hint=(None,1),width=dp(4))
+                with bar.canvas.before:
+                    Color(*clr); brr=RoundedRectangle(pos=bar.pos,size=bar.size,radius=[dp(2)])
+                bar.bind(pos=lambda w,v,r=brr:setattr(r,'pos',v),
+                         size=lambda w,v,r=brr:setattr(r,'size',v))
+                card.add_widget(bar)
+                card.add_widget(ico(II['book'],size=sp(20),color=clr,
+                                     size_hint_x=None,width=dp(26)))
+                info=BoxLayout(orientation='vertical',spacing=dp(3))
+                nl=lbl(f'[b]{title}[/b]',size=sp(12),bold=True,
+                         size_hint_y=None,height=dp(22))
+                nl.markup=True
+                meta=BoxLayout(spacing=dp(6),size_hint_y=None,height=dp(18))
+                meta.add_widget(lbl(f'{len(text.split())} tokens',size=sp(9),
+                                     color=C['muted'],size_hint_x=None,width=dp(65)))
+                meta.add_widget(Badge(color_key=BKEYS[i%len(BKEYS)],
+                                       text='Cuento',size_hint=(None,None),height=dp(16)))
+                meta.add_widget(Widget())
+                info.add_widget(nl); info.add_widget(meta)
+                card.add_widget(info); row.add_widget(card)
+                db=NeonButton(text=II['close'],font_name='Icons',
+                               style='danger',text_color=C['pink'],
+                               font_size=sp(18),
+                               size_hint=(None,1),width=dp(44))
+                db.bind(on_press=lambda _,idx=i: self._delete(idx))
+                row.add_widget(db); grid.add_widget(row); slide_in(row,delay=.03*i)
 
-        scroll.add_widget(self.doc_list)
-        self.add_widget(scroll)
-        animate_widget_entrance(scroll, delay=0.06)
+        scroll.add_widget(grid); self.add_widget(scroll)
 
-    def _add_doc_card(self, idx, title, text):
-        row = BoxLayout(orientation='horizontal', size_hint_y=None, height=dp(64),
-                        spacing=dp(6))
+        bot=BoxLayout(size_hint_y=None,height=dp(50),padding=[dp(10),dp(6)],spacing=dp(8))
+        apply_bg(bot,C['bg'])
+        bot.add_widget(lbl(f'{n} documentos',size=sp(10),color=C['muted'],
+                            size_hint_x=None,width=dp(130)))
+        cta=NeonButton(text='Continuar a Entrenar',
+                        style='primary' if ready else 'sm',
+                        text_color=(0.05,0.05,0.1,1) if ready else C['muted'],
+                        font_size=sp(12))
+        cta.bind(on_press=lambda *_: self._shell._switch_tab('train') if self._shell else None)
+        bot.add_widget(cta); self.add_widget(bot)
 
-        card = CardBox(orientation='vertical', padding=[dp(10), dp(6)], spacing=dp(2),
-                        size_hint=(1, 1))
-        lbl_title = Label(text=f"[b]{title}[/b]", markup=True,
-                           font_size=sp(13), color=C["accent2"],
-                           halign='left', valign='middle',
-                           size_hint_y=None, height=dp(22))
-        lbl_title.bind(size=lambda w, v: setattr(w, 'text_size', v))
-        card.add_widget(lbl_title)
-
-        snippet = text[:80] + "..." if len(text) > 80 else text
-        lbl_snippet = Label(text=snippet, font_size=sp(10), color=C["subtext"],
-                             halign='left', valign='middle',
-                             size_hint_y=None, height=dp(28))
-        lbl_snippet.bind(size=lambda w, v: setattr(w, 'text_size', v))
-        card.add_widget(lbl_snippet)
-        row.add_widget(card)
-
-        del_btn = StyledButton(text="Del", bg_color=C["rose"],
-                                size_hint=(None, 1), width=dp(36), font_size=sp(16))
-        del_btn.bind(on_press=lambda *_, i=idx: self._delete_doc(i))
-        row.add_widget(del_btn)
-
-        self.doc_list.add_widget(row)
-        animate_widget_entrance(row, delay=0.02 * (idx % 8))
-
-    def _delete_doc(self, idx):
-        session.remove_document(idx)
-        self._build()
-
-    def _show_add_popup(self):
-        content = BoxLayout(orientation='vertical', padding=dp(12), spacing=dp(10))
-        content.add_widget(Label(text="Titulo del texto:", font_size=sp(13), color=C["text"],
-                                  size_hint_y=None, height=dp(24)))
-        title_inp = TextInput(
-            hint_text="ej: Mi cuento favorito",
-            multiline=False, size_hint_y=None, height=dp(40),
-            background_color=C["card2"], foreground_color=C["text"],
-            font_size=sp(13),
-        )
-        content.add_widget(title_inp)
-        content.add_widget(Label(text="Contenido del texto:", font_size=sp(13), color=C["text"],
-                                  size_hint_y=None, height=dp(24)))
-        text_inp = TextInput(
-            hint_text="Escribe o pega aqui el texto...",
-            multiline=True,
-            background_color=C["card2"], foreground_color=C["text"],
-            font_size=sp(12),
-        )
-        content.add_widget(text_inp)
-
-        btns = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
-        btn_cancel = StyledButton(text="Cancelar", bg_color=C["card2"])
-        btn_add = StyledButton(text="+ Agregar", bg_color=C["accent"])
-        btns.add_widget(btn_cancel)
-        btns.add_widget(btn_add)
-        content.add_widget(btns)
-
-        popup = Popup(title='Agregar texto', content=content,
-                      size_hint=(0.93, 0.8), background_color=C["card"])
-
-        def do_add(*_):
-            t = title_inp.text.strip() or f"Texto {len(session.documents)+1}"
-            tx = text_inp.text.strip()
-            if len(tx) < 10:
-                title_inp.hint_text = "[!] El texto es muy corto!"
-                return
-            session.add_document(t, tx)
-            popup.dismiss()
-            self._build()
-
-        btn_add.bind(on_press=do_add)
-        btn_cancel.bind(on_press=popup.dismiss)
-        popup.open()
-
-    def _load_file_popup(self):
-        """Popup para cargar archivo .txt."""
-        content = BoxLayout(orientation='vertical', padding=dp(12), spacing=dp(10))
-        content.add_widget(Label(
-            text="Ingresa la ruta completa del archivo .txt:",
-            font_size=sp(13), color=C["text"],
-            size_hint_y=None, height=dp(36),
-            halign='center',
-        ))
-        path_inp = TextInput(
-            hint_text="/sdcard/Download/mi_cuento.txt",
-            multiline=False, size_hint_y=None, height=dp(44),
-            background_color=C["card2"], foreground_color=C["text"],
-            font_size=sp(12),
-        )
-        content.add_widget(path_inp)
-
-        content.add_widget(Label(text="Accesos rapidos:", font_size=sp(11),
-                                  color=C["subtext"], size_hint_y=None, height=dp(20)))
-        quick = BoxLayout(size_hint_y=None, height=dp(36), spacing=dp(6))
-        for folder in ["/sdcard/Download", "/sdcard/Documents", "/storage/emulated/0/Download"]:
-            short = folder.split("/")[-1]
-            b = StyledButton(text=short, bg_color=C["card2"], font_size=sp(10))
-            b.bind(on_press=lambda _, f=folder: setattr(path_inp, 'text', f + "/"))
-            quick.add_widget(b)
-        content.add_widget(quick)
-
-        status_lbl = Label(text="", font_size=sp(11), color=C["rose"],
-                            size_hint_y=None, height=dp(24), halign='center')
-        content.add_widget(status_lbl)
-
-        btns = BoxLayout(size_hint_y=None, height=dp(42), spacing=dp(8))
-        btn_cancel = StyledButton(text="Cancelar", bg_color=C["card2"])
-        btn_load = StyledButton(text="Cargar", bg_color=C["accent"])
-        btns.add_widget(btn_cancel)
-        btns.add_widget(btn_load)
-        content.add_widget(btns)
-
-        popup = Popup(title='Cargar archivo .txt', content=content,
-                      size_hint=(0.93, 0.72), background_color=C["card"])
-
-        def do_load(*_):
-            path = path_inp.text.strip()
-            if not os.path.exists(path):
-                status_lbl.text = f"[X] Archivo no encontrado:\n{path}"
-                return
-            try:
-                with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-                    text = f.read()
-                title = os.path.basename(path).replace('.txt', '')
-                session.add_document(title, text)
-                popup.dismiss()
-                self._build()
-            except Exception as e:
-                status_lbl.text = f"[X] Error: {str(e)[:60]}"
-
-        btn_load.bind(on_press=do_load)
-        btn_cancel.bind(on_press=popup.dismiss)
-        popup.open()
-
+    def _delete(self,idx): session.remove_document(idx); self._build()
     def _load_demo(self):
         session.clear()
-        for title, text in DEMO_STORIES:
-            session.add_document(title, text)
+        for t,tx in DEMO_STORIES: session.add_document(t,tx)
         self._build()
 
-    def _confirm_clear(self):
-        content = BoxLayout(orientation='vertical', padding=dp(12), spacing=dp(10))
-        content.add_widget(Label(
-            text="?Eliminar TODOS los documentos?",
-            font_size=sp(14), color=C["text"], halign='center',
-        ))
-        btns = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
-        btn_no = StyledButton(text="Cancelar", bg_color=C["card2"])
-        btn_yes = StyledButton(text="Borrar todo", bg_color=C["rose"])
-        btns.add_widget(btn_no)
-        btns.add_widget(btn_yes)
-        content.add_widget(btns)
-        popup = Popup(title='Confirmar', content=content,
-                      size_hint=(0.8, 0.3), background_color=C["card"])
+    def _popup(self, title_t, content, size=(0.93,0.8)):
+        popup=Popup(title=title_t,content=content,size_hint=size,background_color=C['bg2'])
+        return popup
 
-        def do_clear(*_):
-            session.clear()
-            popup.dismiss()
-            self._build()
+    def _popup_add(self):
+        ov=BoxLayout(orientation='vertical',padding=dp(12),spacing=dp(8))
+        ov.add_widget(lbl('Titulo:',size=sp(11),color=C['muted'],size_hint_y=None,height=dp(20)))
+        ti=TextInput(hint_text='Mi cuento favorito',multiline=False,font_name='Nunito-Regular',
+                      size_hint_y=None,height=dp(40),background_color=C['bg3'],
+                      foreground_color=C['text'],font_size=sp(13),cursor_color=C['cyan'])
+        ov.add_widget(ti)
+        ov.add_widget(lbl('Contenido:',size=sp(11),color=C['muted'],size_hint_y=None,height=dp(20)))
+        tx=TextInput(hint_text='Escribe o pega el texto aqui...',font_name='Nunito-Regular',
+                      background_color=C['bg3'],foreground_color=C['text'],
+                      font_size=sp(12),cursor_color=C['cyan'])
+        ov.add_widget(tx)
+        btns=BoxLayout(size_hint_y=None,height=dp(44),spacing=dp(8))
+        bc=NeonButton(text='Cancelar',style='sm')
+        ba=NeonButton(text='Agregar',style='primary',text_color=(0.05,0.05,0.1,1))
+        btns.add_widget(bc); btns.add_widget(ba); ov.add_widget(btns)
+        popup=self._popup('Agregar texto',ov)
+        def do(*_):
+            t=ti.text.strip() or f'Texto {len(session.documents)+1}'
+            if len(tx.text.strip())<10: return
+            session.add_document(t,tx.text.strip()); popup.dismiss(); self._build()
+        ba.bind(on_press=do); bc.bind(on_press=popup.dismiss); popup.open()
 
-        btn_yes.bind(on_press=do_clear)
-        btn_no.bind(on_press=popup.dismiss)
-        popup.open()
+    def _popup_file(self):
+        ov=BoxLayout(orientation='vertical',padding=dp(12),spacing=dp(8))
+        ov.add_widget(lbl('Ruta del archivo .txt:',size=sp(12),color=C['muted'],
+                            size_hint_y=None,height=dp(24)))
+        pi=TextInput(hint_text='/sdcard/Download/cuento.txt',multiline=False,font_name='Nunito-Regular',
+                      size_hint_y=None,height=dp(42),background_color=C['bg3'],
+                      foreground_color=C['text'],font_size=sp(11),cursor_color=C['cyan'])
+        ov.add_widget(pi)
+        st=lbl('',size=sp(11),color=C['pink'],size_hint_y=None,height=dp(22))
+        ov.add_widget(st)
+        btns=BoxLayout(size_hint_y=None,height=dp(44),spacing=dp(8))
+        bc=NeonButton(text='Cancelar',style='sm')
+        bl=NeonButton(text='Cargar',style='primary',text_color=(0.05,0.05,0.1,1))
+        btns.add_widget(bc); btns.add_widget(bl); ov.add_widget(btns)
+        popup=self._popup('Cargar .txt',ov,size=(0.93,0.52))
+        def do(*_):
+            path=pi.text.strip()
+            if not os.path.exists(path): st.text='Archivo no encontrado'; return
+            try:
+                with open(path,'r',encoding='utf-8',errors='ignore') as f: txt=f.read()
+                session.add_document(os.path.basename(path).replace('.txt',''),txt)
+                popup.dismiss(); self._build()
+            except Exception as e: st.text=f'Error: {str(e)[:50]}'
+        bl.bind(on_press=do); bc.bind(on_press=popup.dismiss); popup.open()
 
+# ── NeonSlider ────────────────────────────────────────────────────────────────
+class NeonSlider(BoxLayout):
+    def __init__(self,label_text,mn,mx,val,step,clr_key='cyan',fmt='{:.0f}',**kw):
+        kw.setdefault('orientation','vertical'); kw.setdefault('spacing',dp(3))
+        kw.setdefault('size_hint_y',None); kw.setdefault('height',dp(62))
+        super().__init__(**kw)
+        clr={'cyan':C['cyan'],'violet':C['violet'],'pink':C['pink'],'amber':C['amber']}[clr_key]
+        row=BoxLayout(size_hint_y=None,height=dp(20))
+        row.add_widget(lbl(label_text,size=sp(11),color=C['muted']))
+        self._vl=lbl(fmt.format(val),size=sp(12),color=clr,bold=True,
+                      halign='right',size_hint_x=None,width=dp(48))
+        row.add_widget(self._vl); self.add_widget(row)
+        self._sl=Slider(min=mn,max=mx,value=val,step=step,size_hint_y=None,height=dp(34),
+                         value_track=True,value_track_color=clr)
+        self._sl.bind(value=lambda _,v: setattr(self._vl,'text',fmt.format(v)))
+        self.add_widget(self._sl)
 
-# ??? TAB: Entrenar ????????????????????????????????????????????????????????????
+    @property
+    def value(self): return self._sl.value
 
+# ── TrainTab ──────────────────────────────────────────────────────────────────
 class TrainTab(BoxLayout):
-    def __init__(self, **kwargs):
-        super().__init__(orientation='vertical', spacing=dp(10), **kwargs)
-        self._training = False
-        self._build()
+    def __init__(self,shell=None,**kw):
+        super().__init__(orientation='vertical',**kw)
+        self._shell=shell; self._training=False; self._build()
 
     def _build(self):
-        scroll = ScrollView()
-        inner = BoxLayout(orientation='vertical', spacing=dp(10),
-                           size_hint_y=None, padding=[0, 4])
+        self.add_widget(make_header('Entrenar SOM','Configura los hiperparametros',II['funnel']))
+        scroll=ScrollView(size_hint=(1,1))
+        inner=BoxLayout(orientation='vertical',spacing=dp(8),padding=[dp(12),dp(8)],size_hint_y=None)
         inner.bind(minimum_height=inner.setter('height'))
 
-        inner.add_widget(SectionTitle(text="Parametros del SOM"))
+        # ── Card 1: Grilla del mapa ──
+        gc=NeonCard(orientation='vertical',size_hint_y=None,height=dp(150),
+                    padding=[dp(14),dp(12)],spacing=dp(10))
+        gc.add_widget(section_title('Grilla del mapa'))
 
-        # Tamaño de grilla
-        grid_card = CardBox(orientation='vertical', padding=dp(12), spacing=dp(6),
-                             size_hint_y=None, height=dp(84))
-        grid_card.add_widget(Label(
-            text="Tamano de grilla (filas x cols)", font_size=sp(12),
-            color=C["subtext"], size_hint_y=None, height=dp(20), halign='left'))
-        grid_row = BoxLayout(spacing=dp(8), size_hint_y=None, height=dp(40))
-        self.spin_rows = Spinner(values=['4', '6', '8', '10', '12'],
-                                  text=str(session.grid_size[0]),
-                                  size_hint=(1, 1), font_size=sp(14),
-                                  background_color=C["accent"])
-        self.spin_cols = Spinner(values=['4', '6', '8', '10', '12'],
-                                  text=str(session.grid_size[1]),
-                                  size_hint=(1, 1), font_size=sp(14),
-                                  background_color=C["accent"])
-        grid_row.add_widget(Label(text="Filas:", font_size=sp(12), color=C["text"],
-                                   size_hint=(None, 1), width=dp(40)))
-        grid_row.add_widget(self.spin_rows)
-        grid_row.add_widget(Label(text="Cols:", font_size=sp(12), color=C["text"],
-                                   size_hint=(None, 1), width=dp(40)))
-        grid_row.add_widget(self.spin_cols)
-        grid_card.add_widget(grid_row)
-        inner.add_widget(grid_card)
+        row_filas=BoxLayout(size_hint_y=None,height=dp(44),spacing=dp(12))
+        row_filas.add_widget(lbl('Filas',size=sp(12),color=C['muted'],
+                                  size_hint_x=None,width=dp(70)))
+        self.spin_rows=Spinner(values=['4','6','8','10','12'],text=str(session.grid_size[0]),
+                                size_hint=(1,1),font_name='Nunito-Regular',font_size=sp(14),
+                                background_color=C['bg3'],color=C['cyan'])
+        row_filas.add_widget(self.spin_rows)
+        gc.add_widget(row_filas)
 
-        # Iteraciones
-        iter_card = CardBox(orientation='vertical', padding=dp(12), spacing=dp(6),
-                             size_hint_y=None, height=dp(84))
-        self.iter_lbl = Label(
-            text=f"Iteraciones de entrenamiento: [b]{session.max_iter}[/b]",
-            markup=True, font_size=sp(12), color=C["subtext"],
-            size_hint_y=None, height=dp(20), halign='left',
-        )
-        self.iter_lbl.bind(size=lambda w, v: setattr(w, 'text_size', v))
-        iter_card.add_widget(self.iter_lbl)
-        self.iter_slider = Slider(min=100, max=1000, value=session.max_iter, step=50,
-                       value_track=True, value_track_color=C["accent"],
-                       size_hint_y=None, height=dp(44))
-        self.iter_slider.bind(value=self._on_iter_change)
-        iter_card.add_widget(self.iter_slider)
-        inner.add_widget(iter_card)
+        row_cols=BoxLayout(size_hint_y=None,height=dp(44),spacing=dp(12))
+        row_cols.add_widget(lbl('Columnas',size=sp(12),color=C['muted'],
+                                 size_hint_x=None,width=dp(70)))
+        self.spin_cols=Spinner(values=['4','6','8','10','12'],text=str(session.grid_size[1]),
+                                size_hint=(1,1),font_name='Nunito-Regular',font_size=sp(14),
+                                background_color=C['bg3'],color=C['violet'])
+        row_cols.add_widget(self.spin_cols)
+        gc.add_widget(row_cols)
+        inner.add_widget(gc)
 
-        # Clusters
-        cluster_card = CardBox(orientation='vertical', padding=dp(12), spacing=dp(6),
-                                size_hint_y=None, height=dp(84))
-        self.clust_lbl = Label(
-            text=f"Numero de clusters K-Means: [b]{session.n_clusters}[/b]",
-            markup=True, font_size=sp(12), color=C["subtext"],
-            size_hint_y=None, height=dp(20), halign='left',
-        )
-        self.clust_lbl.bind(size=lambda w, v: setattr(w, 'text_size', v))
-        cluster_card.add_widget(self.clust_lbl)
-        self.clust_slider = Slider(min=2, max=8, value=session.n_clusters, step=1,
-                        value_track=True, value_track_color=C["gold"],
-                        size_hint_y=None, height=dp(44))
-        self.clust_slider.bind(value=self._on_cluster_change)
-        cluster_card.add_widget(self.clust_slider)
-        inner.add_widget(cluster_card)
+        # ── Card 2: Entrenamiento ──
+        pc=NeonCard(orientation='vertical',size_hint_y=None,height=dp(230),
+                     padding=[dp(14),dp(12)],spacing=dp(8))
+        pc.add_widget(section_title('Entrenamiento'))
+        self.s_iter =NeonSlider('Iteraciones',100,1000,session.max_iter,50,'violet')
+        self.s_clust=NeonSlider('Clusters K-Means',2,8,session.n_clusters,1,'pink')
+        self.s_lr   =NeonSlider('Tasa aprendizaje',0.1,1.0,0.5,0.05,'amber','{:.2f}')
+        for s in [self.s_iter,self.s_clust,self.s_lr]: pc.add_widget(s)
+        inner.add_widget(pc)
 
-        # Estado de documentos
-        n = len(session.documents)
-        status_card = CardBox(orientation='horizontal', padding=dp(12),
-                               size_hint_y=None, height=dp(52))
-        status_color = C["green"] if n >= 2 else C["rose"]
-        status_icon = "[OK]" if n >= 2 else "[!]"
-        status_card.add_widget(Label(
-            text=f"{status_icon}  [b]{n}[/b] documento{'s' if n!=1 else ''} listo{'s' if n!=1 else ''}\n"
-                 f"{'Listo para entrenar' if n >= 2 else 'Necesitas al menos 2 documentos'}",
-            markup=True, font_size=sp(12), color=status_color,
-            halign='left', valign='middle',
-        ))
-        inner.add_widget(status_card)
+        n=len(session.documents); ok=n>=2
+        sc=NeonCard(orientation='horizontal',size_hint_y=None,height=dp(50),
+                     padding=[dp(14),dp(8)],spacing=dp(10))
+        sc.add_widget(ico(II['check'] if ok else II['warning'],size=sp(22),
+                           color=C['green'] if ok else C['amber'],size_hint_x=None,width=dp(32)))
+        col=BoxLayout(orientation='vertical',spacing=dp(2))
+        col.add_widget(lbl(f'{n} doc{"s" if n!=1 else ""} {"listos" if ok else "cargados"}',
+                            size=sp(12),color=C['green'] if ok else C['amber']))
+        col.add_widget(lbl('Listo para entrenar' if ok else 'Necesitas al menos 2 docs',
+                            size=sp(10),color=C['muted']))
+        sc.add_widget(col); inner.add_widget(sc)
 
-        # Progreso
-        prog_card = CardBox(orientation='vertical', padding=dp(12), spacing=dp(6),
-                             size_hint_y=None, height=dp(80))
-        self.prog_lbl = Label(
-            text="Listo para entrenar",
-            font_size=sp(12), color=C["subtext"],
-            size_hint_y=None, height=dp(22), halign='left',
-        )
-        self.prog_lbl.bind(size=lambda w, v: setattr(w, 'text_size', v))
-        prog_card.add_widget(self.prog_lbl)
-        self.prog_bar = ProgressBar(max=100, value=0, size_hint_y=None, height=dp(12))
-        prog_card.add_widget(self.prog_bar)
-        inner.add_widget(prog_card)
+        self._pc=NeonCard(orientation='vertical',size_hint_y=None,height=dp(68),
+                           padding=[dp(14),dp(10)],spacing=dp(6))
+        prow=BoxLayout(size_hint_y=None,height=dp(20))
+        self._pl=lbl('Listo para entrenar',size=sp(11),color=C['muted'])
+        self._pct=lbl('',size=sp(11),color=C['cyan'],bold=True,
+                       halign='right',size_hint_x=None,width=dp(40))
+        prow.add_widget(self._pl); prow.add_widget(self._pct); self._pc.add_widget(prow)
+        track=BoxLayout(size_hint_y=None,height=dp(6))
+        apply_rounded_bg(track,C['bg3'],radius=dp(3))
+        self._fill=Widget(size_hint=(0,1))
+        with self._fill.canvas.before:
+            Color(*C['cyan']); self._frr=RoundedRectangle(pos=self._fill.pos,
+                                                            size=self._fill.size,radius=[dp(3)])
+        self._fill.bind(pos=lambda w,v:setattr(self._frr,'pos',v),
+                        size=lambda w,v:setattr(self._frr,'size',v))
+        track.add_widget(self._fill); track.add_widget(Widget())
+        self._pc.add_widget(track); inner.add_widget(self._pc)
+        scroll.add_widget(inner); self.add_widget(scroll)
 
-        # Info teórica
-        theory_card = CardBox(orientation='vertical', padding=dp(12), spacing=dp(4),
-                               size_hint_y=None, height=dp(160))
-        theory_card.add_widget(SectionTitle(text="¿Como funciona?"))
-        theory_card.add_widget(Label(
-            text="El [b]SOM de Kohonen[/b] aprende una proyeccion\n"
-                 "topologica de vectores [b]TF-IDF[/b] al plano 2D.\n\n"
-                 "- TF-IDF captura la importancia de cada palabra\n"
-                 "- El SOM agrupa textos similares en neuronas cercanas\n"
-                 "- K-Means colorea los grupos tematicos\n"
-                 "- n(t) = n0.exp(-t/L)"
-                 "   s(t) = s0.exp(-t/L_s)",
-            markup=True, font_size=sp(11), color=C["subtext"],
-            halign='left', valign='top',
-        ))
-        inner.add_widget(theory_card)
+        bot=BoxLayout(size_hint_y=None,height=dp(52),padding=[dp(10),dp(4)])
+        apply_bg(bot,C['bg'])
+        self._btn=NeonButton(text='  Iniciar entrenamiento',style='primary',
+                              text_color=(0.05,0.05,0.1,1),font_size=sp(14))
+        self._btn.bind(on_press=lambda *_: self._start()); bot.add_widget(self._btn)
+        self.add_widget(bot); slide_in(bot,delay=0.12)
 
-        scroll.add_widget(inner)
-        self.add_widget(scroll)
-
-        # Botón entrenar (fijo abajo)
-        self.btn_train = StyledButton(
-            text=">> ENTRENAR SOM",
-            bg_color=C["accent"],
-            size_hint_y=None, height=dp(52),
-            font_size=sp(16 * UI_SCALE), bold=True,
-        )
-        self.btn_train.bind(on_press=lambda *_: self._start_training())
-        self.add_widget(self.btn_train)
-        animate_widget_entrance(self.btn_train, delay=0.08)
-
-    def _on_iter_change(self, _, value):
-        session.max_iter = int(value)
-        self.iter_lbl.text = f"Iteraciones de entrenamiento: [b]{int(value)}[/b]"
-
-    def _on_cluster_change(self, _, value):
-        session.n_clusters = int(value)
-        self.clust_lbl.text = f"Numero de clusters K-Means: [b]{int(value)}[/b]"
-
-    def _start_training(self):
-        if self._training:
-            return
-        if len(session.documents) < 2:
-            self._show_error("Necesitas al menos 2 documentos.\nVe a la pestana 'Docs'.")
-            return
-
-        session.grid_size = (int(self.spin_rows.text), int(self.spin_cols.text))
-
-        self._training = True
-        self.btn_train.text = "... Entrenando..."
-        self.btn_train._bg = C["card2"]
-        self.btn_train._draw()
-        self.prog_bar.value = 0
-
-        def progress_cb(pct, qe):
-            def _update(*_):
-                self.prog_bar.value = pct
-                self.prog_lbl.text = (
-                    f"Progreso: {pct}%  -  Error de cuantizacion: {qe:.4f}"
-                )
-            Clock.schedule_once(_update)
-
+    def _start(self):
+        if self._training: return
+        if len(session.documents)<2:
+            self._err('Necesitas al menos 2 documentos.'); return
+        session.grid_size=(int(self.spin_rows.text),int(self.spin_cols.text))
+        session.max_iter=int(self.s_iter.value); session.n_clusters=int(self.s_clust.value)
+        self._training=True; self._btn.text='  Entrenando...'; self._fill.size_hint_x=0
+        def cb(pct,qe):
+            def _u(*_):
+                self._fill.size_hint_x=pct/100; self._pct.text=f'{pct}%'
+                self._pl.text=f'Epoca {pct*session.max_iter//100}/{session.max_iter}  err:{qe:.3f}'
+            Clock.schedule_once(_u)
         def worker():
             try:
-                vocab_size = session.prepare()
-                Clock.schedule_once(lambda *_: setattr(
-                    self.prog_lbl, 'text',
-                    f"Vocabulario: {vocab_size} palabras - Iniciando SOM..."
-                ))
-                session.train(callback=progress_cb)
-                Clock.schedule_once(lambda *_: self._on_done())
-            except Exception as e:
-                Clock.schedule_once(lambda *_, err=str(e): self._on_error(err))
+                v=session.prepare()
+                Clock.schedule_once(lambda *_: setattr(self._pl,'text',f'Vocabulario: {v} palabras'))
+                session.train(callback=cb); Clock.schedule_once(lambda *_: self._done())
+            except Exception as e: Clock.schedule_once(lambda *_,err=str(e): self._err(err))
+        threading.Thread(target=worker,daemon=True).start()
 
-        threading.Thread(target=worker, daemon=True).start()
+    def _done(self):
+        self._training=False; self._btn.text='  Completado'
+        self._fill.size_hint_x=1; self._pct.text='100%'; self._popup_done()
 
-    def _on_done(self):
-        self._training = False
-        self.btn_train.text = "[OK] Entrenado"
-        self.btn_train._bg = C["green"]
-        self.btn_train._draw()
-        self.prog_bar.value = 100
-        self.prog_lbl.text = (
-            f"Entrenamiento completo [OK]: {len(session.documents)} docs -> "
-            f"{session.grid_size[0]}x{session.grid_size[1]} grilla"
-        )
-        self._show_done_popup()
-
-    def _on_error(self, err):
-        self._training = False
-        self.btn_train.text = ">> ENTRENAR SOM"
-        self.btn_train._bg = C["accent"]
-        self.btn_train._draw()
-        self._show_error(f"Error durante entrenamiento:\n{err}")
-
-    def _show_done_popup(self):
-        n_docs = len(session.documents)
-        qe = session.som.quantization_errors[-1] if session.som else 0
-        content = BoxLayout(orientation='vertical', padding=dp(16), spacing=dp(8))
-        content.add_widget(Label(
-            text=f"[b]SOM entrenado exitosamente[/b]\n\n"
-                  f"Documentos: {n_docs}\n"
-                  f"Grilla: {session.grid_size[0]}x{session.grid_size[1]}\n"
-                  f"Clusters: {session.n_clusters}\n"
-                  f"Error final: {qe:.4f}\n\n"
-                  f"Ve a la pestana [b][SOM] Mapa[/b] para visualizar.",
-            markup=True, font_size=sp(13), color=C["text"],
-            halign='center', valign='top',
-        ))
-        btn = StyledButton(text="Ver Mapa ->", bg_color=C["accent"],
-                           size_hint_y=None, height=dp(44))
-        content.add_widget(btn)
-        popup = Popup(title='Entrenamiento completo',
-                      content=content, size_hint=(0.88, 0.55),
-                      background_color=C["card"])
-        btn.bind(on_press=popup.dismiss)
+    def _popup_done(self):
+        qe=session.som.quantization_errors[-1] if session.som else 0
+        ov=BoxLayout(orientation='vertical',padding=dp(16),spacing=dp(12))
+        ov.add_widget(ico(II['check'],size=sp(40),color=C['green']))
+        ov.add_widget(lbl(f'Entrenamiento completado\n\n'
+                           f'Docs: {len(session.documents)}   '
+                           f'Grilla: {session.grid_size[0]}x{session.grid_size[1]}\n'
+                           f'Clusters: {session.n_clusters}   Error: {qe:.4f}',
+                           size=sp(13),color=C['text'],halign='center'))
+        btn=NeonButton(text='Ver mapa SOM',style='primary',text_color=(0.05,0.05,0.1,1),
+                        size_hint_y=None,height=dp(44),font_size=sp(13))
+        ov.add_widget(btn)
+        popup=Popup(title='',content=ov,size_hint=(.88,.44),
+                     background_color=C['bg2'],separator_height=0)
+        btn.bind(on_press=lambda *_:(popup.dismiss(),
+                                     self._shell._switch_tab('map') if self._shell else None))
         popup.open()
 
-    def _show_error(self, msg):
-        popup = Popup(title='Error', size_hint=(0.85, 0.35),
-                      background_color=C["card"],
-                      content=Label(text=msg, font_size=sp(13),
-                                     color=C["rose"], halign='center'))
-        popup.open()
-        Clock.schedule_once(lambda *_: popup.dismiss(), 4)
+    def _err(self,msg):
+        p=Popup(title='Error',size_hint=(.85,.28),background_color=C['bg2'],
+                 content=lbl(msg,size=sp(12),color=C['pink'],halign='center'))
+        p.open(); Clock.schedule_once(lambda *_: p.dismiss(),4)
 
-
-# ??? TAB: Mapa SOM ????????????????????????????????????????????????????????????
-
-class SOMMapWidget(Widget):
-    """Canvas que dibuja el mapa SOM con puntos y U-Matrix."""
-
-    def __init__(self, map_data, **kwargs):
-        super().__init__(**kwargs)
-        self.map_data = map_data
-        self.bind(pos=self._draw, size=self._draw)
-        Clock.schedule_once(self._draw)
-
-    def _draw(self, *args):
-        if not self.map_data or not self.width or not self.height:
-            return
-        data = self.map_data
-        rows = data.get("grid_rows", 8)
-        cols = data.get("grid_cols", 8)
-        docs = data.get("documents", [])
-        u_mat = data.get("u_matrix", [])
-
+# ── SOMCanvas ─────────────────────────────────────────────────────────────────
+class SOMCanvas(Widget):
+    def __init__(self,data,mode='clusters',**kw):
+        super().__init__(**kw); self._data=data; self._mode=mode; self._on_select=None
+        self.bind(pos=self._draw,size=self._draw); Clock.schedule_once(self._draw)
+    def set_mode(self,mode): self._mode=mode; self._draw()
+    def _draw(self,*_):
+        if not self._data or not self.width or not self.height: return
+        d=self._data; rows=d.get('grid_rows',8); cols=d.get('grid_cols',8)
+        docs=d.get('documents',[]); umat=d.get('u_matrix',[])
+        cw=self.width/cols; ch=self.height/rows
         self.canvas.clear()
         with self.canvas:
-            # Fondo
-            Color(*C["bg2"])
-            Rectangle(pos=self.pos, size=self.size)
-
-            cell_w = self.width / cols
-            cell_h = self.height / rows
-
-            # Dibujar U-Matrix
-            if u_mat:
-                flat = [v for row in u_mat for v in row]
-                max_u = max(flat) if flat else 1
+            Color(*C['bg2']); Rectangle(pos=self.pos,size=self.size)
+            if self._mode=='umatrix' and umat:
+                flat=[v for row in umat for v in row]; mx=max(flat) if flat else 1
                 for r in range(rows):
                     for c in range(cols):
-                        u_val = u_mat[r][c] / (max_u + 1e-9)
-                        Color(u_val * 0.3, u_val * 0.15, u_val * 0.5, 0.7)
-                        x = self.x + c * cell_w
-                        y = self.y + (rows - 1 - r) * cell_h
-                        Rectangle(pos=(x, y), size=(cell_w, cell_h))
-
-            # Grid
-            Color(*C["border"])
-            for r in range(rows + 1):
-                y = self.y + r * cell_h
-                Line(points=[self.x, y, self.x + self.width, y], width=0.5)
-            for c in range(cols + 1):
-                x = self.x + c * cell_w
-                Line(points=[x, self.y, x, self.y + self.height], width=0.5)
-
-            # Documentos
+                        uv=umat[r][c]/(mx+1e-9); Color(uv*.4,uv*.1,uv*.9,.8)
+                        Rectangle(pos=(self.x+c*cw,self.y+(rows-1-r)*ch),size=(cw,ch))
+            elif self._mode=='hits':
+                hmap={}
+                for doc in docs: k=(doc['row'],doc['col']); hmap[k]=hmap.get(k,0)+1
+                mh=max(hmap.values()) if hmap else 1
+                for (r,c),h in hmap.items():
+                    Color(.616,.361,1,h/mh*.7)
+                    Rectangle(pos=(self.x+c*cw,self.y+(rows-1-r)*ch),size=(cw,ch))
+            Color(*C['border'])
+            for r in range(rows+1):
+                y=self.y+r*ch; Line(points=[self.x,y,self.x+self.width,y],width=.5)
+            for c in range(cols+1):
+                x=self.x+c*cw; Line(points=[x,self.y,x,self.y+self.height],width=.5)
             for doc in docs:
-                cluster = doc["cluster"]
-                r_idx = doc["row"]
-                c_idx = doc["col"]
-                color = C["clusters"][cluster % len(C["clusters"])]
+                clr=C['clusters'][doc['cluster']%len(C['clusters'])]
+                cx=self.x+doc['col']*cw+cw/2; cy=self.y+(rows-1-doc['row'])*ch+ch/2
+                Color(clr[0],clr[1],clr[2],.15); Ellipse(pos=(cx-cw*.38,cy-ch*.38),size=(cw*.76,ch*.76))
+                rs=dp(7); Color(clr[0],clr[1],clr[2],.9); Ellipse(pos=(cx-rs,cy-rs),size=(rs*2,rs*2))
+                Color(clr[0],clr[1],clr[2],.4); Line(circle=(cx,cy,rs+dp(2)),width=1.2)
 
-                cx = self.x + c_idx * cell_w + cell_w / 2
-                cy = self.y + (rows - 1 - r_idx) * cell_h + cell_h / 2
-
-                # Halo
-                Color(color[0], color[1], color[2], 0.25)
-                Ellipse(pos=(cx - cell_w * 0.4, cy - cell_h * 0.4),
-                        size=(cell_w * 0.8, cell_h * 0.8))
-
-                # Punto
-                r_size = dp(8)
-                Color(*color)
-                Ellipse(pos=(cx - r_size / 2, cy - r_size / 2),
-                        size=(r_size, r_size))
-
-                # Borde
-                Color(1, 1, 1, 0.6)
-                Line(circle=(cx, cy, r_size / 2 + 1), width=1)
-
-
-class MapTab(BoxLayout):
-    def __init__(self, **kwargs):
-        super().__init__(orientation='vertical', spacing=dp(8), **kwargs)
-        self._build()
-
-    def _build(self):
-        if not session.positions:
-            info = BoxLayout(orientation='vertical', spacing=dp(12), padding=dp(20))
-            info.add_widget(Label(text="[ SOM ]", font_size=sp(40),
-                                   color=C["accent2"], size_hint_y=None, height=dp(80)))
-            info.add_widget(Label(
-                text="El mapa SOM estara disponible\ndespues de entrenar el modelo.\n\n"
-                     "1. Agrega textos en 'Docs'\n"
-                     "2. Configura y entrena en 'Entrenar'\n"
-                     "3. Vuelve aqui para visualizar",
-                font_size=sp(14), color=C["subtext"], halign='center',
-            ))
-            self.add_widget(info)
-            animate_widget_entrance(info, delay=0.03)
-            return
-
-        data = session.get_map_data()
-
-        # Leyenda de clusters
-        legend_scroll = ScrollView(size_hint=(1, None), height=dp(54))
-        legend = BoxLayout(orientation='horizontal', size_hint_x=None,
-                           spacing=dp(8), padding=[dp(6), dp(6)])
-        legend.bind(minimum_width=legend.setter('width'))
-        for i in range(session.n_clusters):
-            color = C["clusters"][i % len(C["clusters"])]
-            words = data["top_words"].get(i, [])[:2]
-            label = ", ".join(words) if words else f"Cluster {i}"
-            pill = CardBox(orientation='horizontal', size_hint=(None, None),
-                           size=(dp(150), dp(34)), padding=[dp(8), dp(4)], spacing=dp(6))
-
-            # BUG FIX: el dot se dibuja en _draw del CardBox; en lugar de
-            # intentar mutar un Ellipse desde un bind externo (que fallaba),
-            # usamos un Widget con su propio canvas limpio y redraw propio.
-            dot = _ColorDot(color=color, size_hint=(None, None), size=(dp(10), dp(10)))
-            pill.add_widget(dot)
-            pill.add_widget(Label(text=label, font_size=sp(10 * UI_SCALE), color=C["text"],
-                                  halign='left', valign='middle'))
-            legend.add_widget(pill)
-        legend_scroll.add_widget(legend)
-        self.add_widget(legend_scroll)
-        animate_widget_entrance(legend_scroll, delay=0.02)
-
-        # Mapa
-        map_widget = SOMMapWidget(map_data=data, size_hint=(1, 1))
-        self.add_widget(map_widget)
-        animate_widget_entrance(map_widget, delay=0.04)
-
-        self.add_widget(SectionTitle(text="Documentos en el mapa"))
-
-        doc_scroll = ScrollView(size_hint=(1, None), height=dp(160))
-        doc_grid = GridLayout(cols=1, spacing=dp(4), size_hint_y=None, padding=[0, 2])
-        doc_grid.bind(minimum_height=doc_grid.setter('height'))
-
-        for doc in data["documents"]:
-            color = C["clusters"][doc["cluster"] % len(C["clusters"])]
-            row = BoxLayout(size_hint_y=None, height=dp(36), spacing=dp(6))
-            # BUG FIX: usando _ColorDot en lugar de Widget con bind externo
-            dot = _ColorDot(color=color, size_hint=(None, None),
-                            size=(dp(12), dp(12)), pos_hint={'center_y': 0.5})
-            row.add_widget(dot)
-            row.add_widget(Label(
-                text=f"[b]{doc['title']}[/b]  [{doc['row']},{doc['col']}]  C{doc['cluster']}",
-                markup=True, font_size=sp(11), color=C["text"],
-                halign='left', valign='middle',
-            ))
-            doc_grid.add_widget(row)
-
-        doc_scroll.add_widget(doc_grid)
-        self.add_widget(doc_scroll)
-        animate_widget_entrance(doc_scroll, delay=0.06)
-
-
-class _ColorDot(Widget):
-    """Punto de color simple que se redibuja correctamente al cambiar de tamaño/pos.
-    BUG FIX: reemplaza el patrón dot.bind(...) que corrompía el canvas.
-    """
-    def __init__(self, color, **kwargs):
-        super().__init__(**kwargs)
-        self._color = color
-        self.bind(pos=self._draw, size=self._draw)
-        Clock.schedule_once(self._draw)
-
-    def _draw(self, *_):
-        self.canvas.clear()
-        with self.canvas:
-            Color(*self._color)
-            Ellipse(pos=self.pos, size=self.size)
-
-
-# ??? TAB: Análisis ????????????????????????????????????????????????????????????
-
-class AnalysisTab(BoxLayout):
-    def __init__(self, **kwargs):
-        super().__init__(orientation='vertical', spacing=dp(8), **kwargs)
-        self._build()
-
-    def _build(self):
-        if not session.positions:
-            self.add_widget(Label(
-                text="El analisis estara disponible\nluego de entrenar el SOM.",
-                font_size=sp(14), color=C["subtext"], halign='center',
-            ))
-            return
-
-        data = session.get_map_data()
-        scroll = ScrollView()
-        inner = BoxLayout(orientation='vertical', spacing=dp(10),
-                           size_hint_y=None, padding=[0, 4])
-        inner.bind(minimum_height=inner.setter('height'))
-
-        # Métricas generales
-        inner.add_widget(SectionTitle(text="> Metricas del modelo"))
-        metrics_card = CardBox(orientation='vertical', padding=dp(12), spacing=dp(6),
-                                size_hint_y=None, height=dp(110))
-        qe_hist = data.get("qe_history", [])
-        qe_final = qe_hist[-1] if qe_hist else 0
-        qe_init = qe_hist[0] if qe_hist else 0
-        mejora = ((qe_init - qe_final) / (qe_init + 1e-9)) * 100
-        metrics_card.add_widget(Label(
-            text=f"Vocabulario:  [b]{data['vocab_size']} palabras[/b]\n"
-                 f"Documentos:  [b]{data['n_docs']}[/b]\n"
-                 f"Grilla:       [b]{data['grid_rows']}x{data['grid_cols']}[/b]\n"
-                 f"Error final:  [b]{qe_final:.4f}[/b]  (v{mejora:.1f}% mejora)",
-            markup=True, font_size=sp(12), color=C["text"],
-            halign='left', valign='top',
-        ))
-        inner.add_widget(metrics_card)
-
-        # Curva de convergencia
-        if qe_hist:
-            inner.add_widget(SectionTitle(text="Convergencia del SOM"))
-            conv_card = CardBox(orientation='vertical', padding=dp(8), spacing=dp(4),
-                                 size_hint_y=None, height=dp(120))
-            conv_widget = ConvergenceChart(qe_hist, size_hint_y=None, height=dp(80))
-            conv_card.add_widget(conv_widget)
-            conv_card.add_widget(Label(
-                text=f"Error inicial: {qe_init:.4f}  ->  Error final: {qe_final:.4f}",
-                font_size=sp(10), color=C["subtext"],
-                size_hint_y=None, height=dp(20), halign='center',
-            ))
-            inner.add_widget(conv_card)
-
-        # Palabras clave por cluster
-        inner.add_widget(SectionTitle(text="Palabras clave por cluster"))
-        for cluster_id, words in data["top_words"].items():
-            color = C["clusters"][cluster_id % len(C["clusters"])]
-            card = CardBox(orientation='vertical', padding=dp(10), spacing=dp(4),
-                            size_hint_y=None, height=dp(64))
-            docs_in_cluster = [d["title"] for d in data["documents"] if d["cluster"] == cluster_id]
-            header = Label(
-                text=f"[b]Cluster {cluster_id}[/b]  ({len(docs_in_cluster)} docs)",
-                markup=True, font_size=sp(12), color=color,
-                size_hint_y=None, height=dp(20), halign='left',
-            )
-            header.bind(size=lambda w, v: setattr(w, 'text_size', v))
-            card.add_widget(header)
-            kw = Label(
-                text="  ".join(f"#{w}" for w in words[:6]),
-                font_size=sp(11), color=C["subtext"],
-                size_hint_y=None, height=dp(24), halign='left',
-            )
-            kw.bind(size=lambda w, v: setattr(w, 'text_size', v))
-            card.add_widget(kw)
-            inner.add_widget(card)
-
-        # Guardar sesión
-        inner.add_widget(SectionTitle(text="Guardar sesion"))
-        save_card = CardBox(orientation='vertical', padding=dp(12), spacing=dp(8),
-                             size_hint_y=None, height=dp(90))
-        save_card.add_widget(Label(
-            text="Guarda el modelo entrenado para continuar\nel analisis en sesiones futuras.",
-            font_size=sp(11), color=C["subtext"], halign='left',
-        ))
-        btn_save = StyledButton(text="Guardar sesion JSON", bg_color=C["accent"],
-                                 size_hint_y=None, height=dp(38), font_size=sp(12))
-        btn_save.bind(on_press=lambda *_: self._save_session())
-        save_card.add_widget(btn_save)
-        inner.add_widget(save_card)
-
-        inner.add_widget(Widget(size_hint_y=None, height=dp(20)))
-        scroll.add_widget(inner)
-        self.add_widget(scroll)
-        animate_widget_entrance(scroll, delay=0.03)
-
-    def _save_session(self):
-        try:
-            path = os.path.join(
-                os.path.expanduser("~"), "storymapsom_session.json"
-            )
-            session.save_session(path)
-            popup = Popup(
-                title='Sesion guardada [OK]',
-                content=Label(text=f"Guardado en:\n{path}", font_size=sp(12),
-                               color=C["green"], halign='center'),
-                size_hint=(0.85, 0.3), background_color=C["card"],
-            )
-            popup.open()
-            Clock.schedule_once(lambda *_: popup.dismiss(), 3)
-        except Exception as e:
-            popup = Popup(
-                title='Error', size_hint=(0.85, 0.3), background_color=C["card"],
-                content=Label(text=str(e), font_size=sp(12), color=C["rose"]),
-            )
-            popup.open()
-
-
-class ConvergenceChart(Widget):
-    """Mini-gráfico de convergencia del error de cuantización."""
-
-    def __init__(self, qe_history, **kwargs):
-        super().__init__(**kwargs)
-        self.qe = qe_history
-        self.bind(pos=self._draw, size=self._draw)
-        Clock.schedule_once(self._draw)
-
-    def _draw(self, *args):
-        # BUG FIX: guard contra lista vacía o un solo punto
-        if not self.qe or not self.width or len(self.qe) < 2:
-            return
-        self.canvas.clear()
-        with self.canvas:
-            Color(*C["card2"])
-            Rectangle(pos=self.pos, size=self.size)
-
-            data = self.qe
-            mn, mx = min(data), max(data)
-            rng = mx - mn or 1
-            n = len(data)
-            pts = []
-            for i, v in enumerate(data):
-                x = self.x + (i / (n - 1)) * self.width
-                y = self.y + ((v - mn) / rng) * self.height
-                pts.extend([x, y])
-
-            # BUG FIX: verificar longitud mínima antes de dibujar
-            if len(pts) >= 4:
-                Color(*C["accent2"])
-                Line(points=pts, width=1.5)
-
-                # Punto final
-                Color(*C["gold"])
-                ex, ey = pts[-2], pts[-1]
-                Ellipse(pos=(ex - dp(4), ey - dp(4)), size=(dp(8), dp(8)))
-
-
-# ??? TAB: Configuración ???????????????????????????????????????????????????????
-
-class SettingsTab(BoxLayout):
-    def __init__(self, **kwargs):
-        super().__init__(orientation='vertical', spacing=dp(10), **kwargs)
-        self._build()
-
-    def _build(self):
-        scroll = ScrollView()
-        inner = BoxLayout(orientation='vertical', spacing=dp(10),
-                           size_hint_y=None, padding=[0, 4])
-        inner.bind(minimum_height=inner.setter('height'))
-
-        inner.add_widget(SectionTitle(text="Configuracion"))
-
-        info_card = CardBox(orientation='vertical', padding=dp(14), spacing=dp(6),
-                             size_hint_y=None, height=dp(190))
-        info_card.add_widget(Label(
-            text="[b]StoryMap SOM v1.0[/b]\n\n"
-                 "[b]Tecnica principal:[/b] Self-Organizing Map (SOM)\n"
-                 "de Kohonen -- Computacion Blanda\n\n"
-                 "[b]Preprocesamiento:[/b]\n"
-                 "- Tokenizacion y eliminacion de stopwords\n"
-                 "- Vectores TF-IDF para representacion semantica\n"
-                 "- Clustering K-Means post-SOM\n\n"
-                 "[b]Autores:[/b] Santiago Castaneda . Santiago Florez",
-            markup=True, font_size=sp(11), color=C["text"],
-            halign='left', valign='top',
-        ))
-        inner.add_widget(info_card)
-
-        inner.add_widget(SectionTitle(text="Fundamento Teorico"))
-        theory_card = CardBox(orientation='vertical', padding=dp(14), spacing=dp(6),
-                               size_hint_y=None, height=dp(240))
-        theory_card.add_widget(Label(
-            text="[b]SOM de Kohonen (1982)[/b]\n\n"
-                 "Red neuronal no supervisada que aprende una\n"
-                 "representacion topologica 2D de datos de alta\n"
-                 "dimension, preservando relaciones de vecindad.\n\n"
-                 "[b]Actualizacion de pesos:[/b]\n"
-                 "Dw = n(t) . h(i,t) . (x - w)\n\n"
-                 "[b]Decaimiento exponencial:[/b]\n"
-                 "n(t) = n0 . exp(-t/L)\n"
-                 "s(t) = s0 . exp(-t/L_s)\n\n"
-                 "[b]Funcion de vecindad gaussiana:[/b]\n"
-                 "h(i,t) = exp(-d2/2s(t)2)",
-            markup=True, font_size=sp(11), color=C["subtext"],
-            halign='left', valign='top',
-        ))
-        inner.add_widget(theory_card)
-
-        inner.add_widget(SectionTitle(text="> Acciones"))
-        actions_card = CardBox(orientation='vertical', padding=dp(12), spacing=dp(8),
-                                size_hint_y=None, height=dp(110))
-        btn_reset = StyledButton(text="<< Reiniciar sesion",
-                                  bg_color=C["rose"], size_hint_y=None, height=dp(40),
-                                  font_size=sp(13))
-        btn_reset.bind(on_press=lambda *_: self._confirm_reset())
-        actions_card.add_widget(btn_reset)
-
-        btn_reload = StyledButton(text="Recargar Demo",
-                                   bg_color=C["teal"], text_color=(0.05, 0.1, 0.1, 1),
-                                   size_hint_y=None, height=dp(40), font_size=sp(13))
-        btn_reload.bind(on_press=lambda *_: self._reload_demo())
-        actions_card.add_widget(btn_reload)
-        inner.add_widget(actions_card)
-
-        inner.add_widget(Widget(size_hint_y=None, height=dp(20)))
-        scroll.add_widget(inner)
-        self.add_widget(scroll)
-        animate_widget_entrance(scroll, delay=0.03)
-
-    def _confirm_reset(self):
-        content = BoxLayout(orientation='vertical', padding=dp(12), spacing=dp(10))
-        content.add_widget(Label(
-            text="¿Reiniciar toda la sesion?\nSe perderan todos los documentos\ny el modelo entrenado.",
-            font_size=sp(13), color=C["text"], halign='center',
-        ))
-        btns = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
-        btn_no = StyledButton(text="Cancelar", bg_color=C["card2"])
-        btn_yes = StyledButton(text="<< Confirmar", bg_color=C["rose"])
-        btns.add_widget(btn_no)
-        btns.add_widget(btn_yes)
-        content.add_widget(btns)
-        popup = Popup(title='Confirmar', content=content,
-                      size_hint=(0.85, 0.38), background_color=C["card"])
-
-        def do_reset(*_):
-            session.clear()
-            popup.dismiss()
-
-        btn_yes.bind(on_press=do_reset)
-        btn_no.bind(on_press=popup.dismiss)
-        popup.open()
-
-    def _reload_demo(self):
-        session.clear()
-        for title, text in DEMO_STORIES:
-            session.add_document(title, text)
-        popup = Popup(
-            title='Demo cargado',
-            content=Label(text=f"[OK] {len(DEMO_STORIES)} cuentos cargados",
-                           font_size=sp(14), color=C["green"], halign='center'),
-            size_hint=(0.8, 0.25), background_color=C["card"],
-        )
-        popup.open()
-        Clock.schedule_once(lambda *_: popup.dismiss(), 2)
-
-
-# ??? ScreenManager y App ??????????????????????????????????????????????????????
-
-class StoryMapApp(App):
-    def build(self):
-        self.title = "StoryMap SOM"
-        sm = ScreenManager(transition=FadeTransition(duration=0.25))
-        sm.add_widget(WelcomeScreen(name='welcome'))
-        sm.add_widget(MainScreen(name='main'))
-        return sm
-
-    def on_pause(self):
+    def on_touch_down(self,touch):
+        if not self.collide_point(*touch.pos) or not self._data: return super().on_touch_down(touch)
+        d=self._data; rows=d.get('grid_rows',8); cols=d.get('grid_cols',8)
+        cw=self.width/cols; ch=self.height/rows
+        ci=int((touch.x-self.x)/cw); ri=rows-1-int((touch.y-self.y)/ch)
+        for doc in d.get('documents',[]):
+            if doc['row']==ri and doc['col']==ci:
+                if self._on_select: self._on_select(doc)
         return True
 
-    def on_resume(self):
-        pass
+# ── MapTab ────────────────────────────────────────────────────────────────────
+class MapTab(BoxLayout):
+    def __init__(self,shell=None,**kw):
+        super().__init__(orientation='vertical',**kw)
+        self._shell=shell; self._mode='clusters'; self._build()
 
+    def _build(self):
+        self.add_widget(make_header('Mapa SOM','Visualizacion topologica 2D',II['map']))
+        if not session.positions:
+            msg=BoxLayout(orientation='vertical',spacing=dp(14),padding=dp(24))
+            msg.add_widget(ico(II['map'],size=sp(48),color=C['violet']))
+            msg.add_widget(lbl('El mapa SOM estara disponible\ndespues de entrenar.\n\n'
+                                '1. Agrega textos en Docs\n2. Configura y entrena\n3. Vuelve aqui',
+                                size=sp(13),color=C['muted'],halign='center'))
+            btn=NeonButton(text='Ir a Entrenar',style='outline',text_color=C['cyan'],
+                            size_hint_y=None,height=dp(44),font_size=sp(13))
+            btn.bind(on_press=lambda *_: self._shell._switch_tab('train') if self._shell else None)
+            msg.add_widget(btn); self.add_widget(msg); return
 
-if __name__ == '__main__':
+        data=session.get_map_data()
+        tb=BoxLayout(size_hint_y=None,height=dp(36),padding=[dp(10),dp(4)],spacing=dp(6))
+        apply_bg(tb,C['bg'])
+        self._mbtns={}
+        for mode,label_text in [('clusters','Clusters'),('umatrix','U-Matrix'),('hits','Hits')]:
+            act=(mode==self._mode)
+            b=NeonButton(text=label_text,style='teal' if act else 'sm',
+                          text_color=C['cyan'] if act else C['text'],size_hint=(1,1),font_size=sp(10))
+            b.bind(on_press=lambda _,m=mode: self._set_mode(m))
+            self._mbtns[mode]=b; tb.add_widget(b)
+        self.add_widget(tb)
+
+        leg_s=ScrollView(size_hint=(1,None),height=dp(40))
+        leg=BoxLayout(orientation='horizontal',size_hint_x=None,spacing=dp(10),padding=[dp(10),dp(6)])
+        leg.bind(minimum_width=leg.setter('width'))
+        for i in range(session.n_clusters):
+            clr=C['clusters'][i%len(C['clusters'])]
+            words=data['top_words'].get(i,[])[:2]
+            it=BoxLayout(size_hint_x=None,width=dp(110),spacing=dp(5))
+            it.add_widget(ColorDot(color=clr,size_hint=(None,None),size=(dp(8),dp(8)),
+                                    pos_hint={'center_y':.5}))
+            it.add_widget(lbl(', '.join(words) if words else f'Cluster {i}',size=sp(9)))
+            leg.add_widget(it)
+        leg_s.add_widget(leg); self.add_widget(leg_s)
+
+        self._canvas=SOMCanvas(data=data,mode=self._mode,size_hint=(1,1))
+        self.add_widget(self._canvas)
+
+        self._icard=NeonCard(orientation='horizontal',size_hint_y=None,height=dp(44),
+                              padding=[dp(12),dp(8)],spacing=dp(8))
+        self._icard.opacity=0
+        self._idoc=lbl('--',size=sp(12),bold=True)
+        self._imeta=lbl('',size=sp(10),color=C['muted'],halign='right',
+                          size_hint_x=None,width=dp(80))
+        self._icard.add_widget(self._idoc); self._icard.add_widget(self._imeta)
+        self.add_widget(self._icard)
+        def on_sel(doc):
+            self._idoc.text=f'[b]{doc["title"]}[/b]'; self._idoc.markup=True
+            self._imeta.text=f'C{doc["cluster"]} [{doc["row"]},{doc["col"]}]'
+            Animation(opacity=1,d=0.18).start(self._icard)
+        self._canvas._on_select=on_sel
+
+        act=BoxLayout(size_hint_y=None,height=dp(44),padding=[dp(10),dp(5)])
+        apply_bg(act,C['bg'])
+        ba=NeonButton(text='Ir a Analisis',style='outline',text_color=C['cyan'],font_size=sp(12))
+        ba.bind(on_press=lambda *_: self._shell._switch_tab('analysis') if self._shell else None)
+        act.add_widget(ba); self.add_widget(act)
+
+    def _set_mode(self,mode):
+        self._mode=mode
+        for k,b in self._mbtns.items():
+            act=(k==mode); b._style='teal' if act else 'sm'
+            b.color=C['cyan'] if act else C['text']; b._draw()
+        if hasattr(self,'_canvas'): self._canvas.set_mode(mode)
+
+# ── ConvergenceChart ──────────────────────────────────────────────────────────
+class ConvergenceChart(Widget):
+    def __init__(self,qe,**kw):
+        super().__init__(**kw); self._qe=qe
+        self.bind(pos=self._draw,size=self._draw); Clock.schedule_once(self._draw)
+    def _draw(self,*_):
+        if not self._qe or len(self._qe)<2 or not self.width: return
+        data=self._qe; mn,mx=min(data),max(data); rng=mx-mn or 1; n=len(data)
+        self.canvas.clear()
+        with self.canvas:
+            Color(*C['bg3']); RoundedRectangle(pos=self.pos,size=self.size,radius=[dp(6)])
+            bw=max(1,self.width/n-1)
+            for i,v in enumerate(data):
+                h=((v-mn)/rng)*self.height*.85+self.height*.05
+                Color(.616,.361,1,.35+.65*(v-mn)/rng)
+                RoundedRectangle(pos=(self.x+i*(self.width/n),self.y),size=(max(1,bw),h),radius=[dp(2)])
+            pts=[]
+            for i,v in enumerate(data):
+                pts.extend([self.x+(i/(n-1))*self.width,
+                             self.y+((v-mn)/rng)*self.height*.85+self.height*.05])
+            if len(pts)>=4:
+                Color(*C['cyan']); Line(points=pts,width=1.5)
+                Color(*C['amber']); Ellipse(pos=(pts[-2]-dp(3),pts[-1]-dp(3)),size=(dp(6),dp(6)))
+
+# ── AnalysisTab ───────────────────────────────────────────────────────────────
+class AnalysisTab(BoxLayout):
+    def __init__(self,shell=None,**kw):
+        super().__init__(orientation='vertical',**kw)
+        self._shell=shell; self._build()
+
+    def _build(self):
+        self.add_widget(make_header('Analisis','Metricas y palabras clave',II['analytics']))
+        if not session.positions:
+            msg=BoxLayout(orientation='vertical',spacing=dp(12),padding=dp(24))
+            msg.add_widget(ico(II['analytics'],size=sp(40),color=C['violet']))
+            msg.add_widget(lbl('Disponible luego de entrenar el SOM.',
+                                size=sp(13),color=C['muted'],halign='center'))
+            self.add_widget(msg); return
+
+        data=session.get_map_data(); qe_h=data.get('qe_history',[])
+        qe_f=qe_h[-1] if qe_h else 0; qe_i=qe_h[0] if qe_h else 0
+        mejora=((qe_i-qe_f)/(qe_i+1e-9))*100
+
+        scroll=ScrollView(size_hint=(1,1))
+        inner=BoxLayout(orientation='vertical',spacing=dp(8),
+                         padding=[dp(10),dp(8)],size_hint_y=None)
+        inner.bind(minimum_height=inner.setter('height'))
+
+        mg=GridLayout(cols=2,spacing=dp(8),size_hint_y=None,height=dp(118))
+        for val,label_text,clr,icon_code in [
+            (f'{qe_f:.3f}','Error final',C['cyan'],II['pulse']),
+            (f'{qe_i:.3f}','Error inicial',C['violet'],II['pulse']),
+            (f'{mejora:.1f}%','Mejora',C['green'],II['check']),
+            (str(data['n_docs']),'Documentos',C['amber'],II['docs'])]:
+            card=NeonCard(orientation='vertical',padding=[dp(10),dp(8)],spacing=dp(3))
+            hr=BoxLayout(size_hint_y=None,height=dp(22),spacing=dp(5))
+            hr.add_widget(ico(icon_code,size=sp(13),color=clr,size_hint_x=None,width=dp(16)))
+            hr.add_widget(lbl(label_text,size=sp(9),color=C['muted']))
+            card.add_widget(hr)
+            card.add_widget(lbl(val,size=sp(18),bold=True,color=clr))
+            mg.add_widget(card)
+        inner.add_widget(mg)
+
+        if qe_h:
+            cc=NeonCard(orientation='vertical',size_hint_y=None,height=dp(124),
+                         padding=[dp(12),dp(10)],spacing=dp(4))
+            cc.add_widget(section_title('Convergencia del SOM'))
+            cc.add_widget(ConvergenceChart(qe_h,size_hint_y=None,height=dp(78)))
+            er=BoxLayout(size_hint_y=None,height=dp(14))
+            er.add_widget(lbl('Epoca 0',size=sp(8),color=C['muted']))
+            er.add_widget(lbl(f'Epoca {session.max_iter}',size=sp(8),color=C['muted'],halign='right'))
+            cc.add_widget(er); inner.add_widget(cc)
+
+        kc=NeonCard(orientation='vertical',size_hint_y=None,
+                     height=dp(28+56*session.n_clusters),padding=[dp(12),dp(10)],spacing=dp(8))
+        kc.add_widget(section_title('Palabras clave por cluster'))
+        for cl_id,words in data['top_words'].items():
+            clr=C['clusters'][cl_id%len(C['clusters'])]
+            cb=BoxLayout(orientation='vertical',size_hint_y=None,height=dp(50),spacing=dp(4))
+            hr=BoxLayout(size_hint_y=None,height=dp(20),spacing=dp(6))
+            hr.add_widget(ColorDot(color=clr,size_hint=(None,None),size=(dp(8),dp(8)),pos_hint={'center_y':.5}))
+            n_cl=len([d for d in data['documents'] if d['cluster']==cl_id])
+            hr.add_widget(lbl(f'[b]Cluster {cl_id}[/b]  ({n_cl} docs)',markup=True,size=sp(11),color=clr))
+            cb.add_widget(hr)
+            chips=BoxLayout(size_hint_y=None,height=dp(24),spacing=dp(4))
+            for w in words[:5]:
+                chips.add_widget(Badge(color_key='violet' if cl_id%2 else 'cyan',
+                                        text=f'#{w}',size_hint=(None,None),height=dp(18)))
+            chips.add_widget(Widget()); cb.add_widget(chips); kc.add_widget(cb)
+        inner.add_widget(kc)
+        inner.add_widget(Widget(size_hint_y=None,height=dp(8)))
+        scroll.add_widget(inner); self.add_widget(scroll)
+
+        btn=NeonButton(text='  Guardar sesion JSON',style='outline',text_color=C['cyan'],
+                        size_hint_y=None,height=dp(44),font_size=sp(13))
+        btn.bind(on_press=lambda *_: self._save()); self.add_widget(btn)
+
+    def _save(self):
+        try:
+            path=os.path.join(os.path.expanduser('~'),'storymapsom_session.json')
+            session.save_session(path)
+            p=Popup(title='',size_hint=(.85,.22),background_color=C['bg2'],
+                     content=lbl(f'Guardado:\n{path}',size=sp(11),color=C['green'],halign='center'))
+            p.open(); Clock.schedule_once(lambda *_: p.dismiss(),3)
+        except Exception as e:
+            p=Popup(title='Error',size_hint=(.85,.22),background_color=C['bg2'],
+                     content=lbl(str(e),size=sp(11),color=C['pink'])); p.open()
+
+# ── ConfigTab ─────────────────────────────────────────────────────────────────
+class ConfigTab(BoxLayout):
+    def __init__(self,shell=None,**kw):
+        super().__init__(orientation='vertical',**kw)
+        self._shell=shell; self._build()
+
+    def _build(self):
+        self.add_widget(make_header('Configuracion','Ajustes y sesion',II['settings']))
+        scroll=ScrollView(size_hint=(1,1))
+        inner=BoxLayout(orientation='vertical',spacing=dp(4),
+                         padding=[dp(10),dp(10)],size_hint_y=None)
+        inner.bind(minimum_height=inner.setter('height'))
+
+        def cfg_row(icon_code, clr, tt, st, right=None):
+            row=NeonCard(orientation='horizontal',size_hint_y=None,height=dp(58),
+                          padding=[dp(12),dp(8)],spacing=dp(10))
+            row.add_widget(ico_box(icon_code,clr,box_size=dp(36),ico_size=sp(17)))
+            col=BoxLayout(orientation='vertical',spacing=dp(2))
+            col.add_widget(lbl(tt,size=sp(12),bold=True))
+            col.add_widget(lbl(st,size=sp(10),color=C['muted']))
+            row.add_widget(col)
+            row.add_widget(right if right else ico(II['arrow_r'],size=sp(18),color=C['muted'],
+                                                    size_hint_x=None,width=dp(20)))
+            return row
+
+        def toggle(on=True):
+            box=BoxLayout(size_hint=(None,None),size=(dp(42),dp(24)))
+            cy=list(C['cyan'][:3])+[0.15]
+            cy2=list(C['cyan'][:3])+[0.50]
+            with box.canvas.before:
+                Color(*(cy if on else list(C['bg4'])))
+                rr=RoundedRectangle(pos=box.pos,size=box.size,radius=[dp(12)])
+                Color(*(cy2 if on else list(C['border'])))
+                ln=Line(rounded_rectangle=[*box.pos,*box.size,dp(12)],width=1)
+            def _p(w,v): rr.pos=v;  ln.rounded_rectangle=[*v,*w.size,dp(12)]
+            def _s(w,v): rr.size=v; ln.rounded_rectangle=[*w.pos,*v,dp(12)]
+            box.bind(pos=_p,size=_s)
+            th=Widget(size_hint=(None,None),size=(dp(18),dp(18)),pos_hint={'center_y':.5})
+            ox=dp(20) if on else dp(3)
+            with th.canvas:
+                Color(*(C['cyan'] if on else C['muted']))
+                th._e=Ellipse(pos=(th.x+ox,th.y+dp(3)),size=(dp(18),dp(18)))
+            box.add_widget(th); return box
+
+        inner.add_widget(section_title('SESION'))
+        rs=cfg_row(II['save'],C['cyan'],'Guardar sesion','Exportar .json con datos')
+        rs.bind(on_touch_down=lambda w,t: self._save_touch(w,t))
+        inner.add_widget(rs)
+        inner.add_widget(cfg_row(II['download'],C['violet'],'Cargar sesion','Importar sesion guardada'))
+
+        inner.add_widget(Widget(size_hint_y=None,height=dp(6)))
+        inner.add_widget(section_title('VISUALIZACION'))
+        for icon_code,clr,tt,st,on in [
+            (II['layers'],  C['amber'], 'Mostrar U-Matrix',      'Fronteras de clusters',      True),
+            (II['pulse'],   C['green'], 'Curva de convergencia', 'Graficar error',             True),
+            (II['tag'],     C['pink'],  'Etiquetas en mapa',     'Nombres sobre celdas',       False),
+        ]:
+            inner.add_widget(cfg_row(icon_code,clr,tt,st,right=toggle(on)))
+
+        inner.add_widget(Widget(size_hint_y=None,height=dp(6)))
+        inner.add_widget(section_title('TEORIA SOM'))
+        rt=cfg_row(II['code'],C['violet'],'Algoritmo de Kohonen','Ver formulas y explicacion')
+        rt.bind(on_touch_down=lambda w,t: self._theory(w,t))
+        inner.add_widget(rt)
+
+        inner.add_widget(Widget(size_hint_y=None,height=dp(8)))
+        inner.add_widget(section_title('PELIGRO'))
+        rst=NeonButton(text='  Reiniciar sesion completa',style='danger',
+                        text_color=C['pink'],size_hint_y=None,height=dp(44),font_size=sp(12))
+        rst.bind(on_press=lambda *_: self._confirm_reset())
+        inner.add_widget(rst)
+        inner.add_widget(Widget(size_hint_y=None,height=dp(8)))
+
+        inner.add_widget(section_title('ACERCA DE'))
+        ab=NeonButton(text='  Acerca de StoryMap SOM',style='outline',text_color=C['violet'],
+                       size_hint_y=None,height=dp(44),font_size=sp(12))
+        ab.bind(on_press=lambda *_: self._about())
+        inner.add_widget(ab)
+
+        inner.add_widget(Widget(size_hint_y=None,height=dp(8)))
+        inner.add_widget(lbl('v1.0.0  Python 3.11.9  Kivy 2.3.0',
+                              size=sp(9),color=C['muted'],halign='center',
+                              size_hint_y=None,height=dp(22)))
+        scroll.add_widget(inner); self.add_widget(scroll)
+
+    def _save_touch(self,w,t):
+        if w.collide_point(*t.pos):
+            try:
+                path=os.path.join(os.path.expanduser('~'),'storymapsom_session.json')
+                session.save_session(path)
+                p=Popup(title='',size_hint=(.85,.22),background_color=C['bg2'],
+                         content=lbl(f'Guardado:\n{path}',size=sp(11),color=C['green'],halign='center'))
+                p.open(); Clock.schedule_once(lambda *_: p.dismiss(),3)
+            except: pass
+
+    def _theory(self,w,t):
+        if not w.collide_point(*t.pos): return
+        ov=BoxLayout(orientation='vertical',padding=dp(14),spacing=dp(8))
+        ov.add_widget(lbl(
+            '[b]SOM de Kohonen (1982)[/b]\n\n'
+            'Red neuronal no supervisada que aprende\n'
+            'una representacion topologica 2D.\n\n'
+            '[b]Actualizacion de pesos:[/b]\n'
+            'Dw = lr(t) * h(i,t) * (x - w)\n\n'
+            '[b]Decaimiento exponencial:[/b]\n'
+            'lr(t) = lr0 * exp(-t / lambda)\n'
+            'sigma(t) = s0 * exp(-t / lambda_s)\n\n'
+            '[b]Vecindad gaussiana:[/b]\n'
+            'h(i,t) = exp(-d^2 / 2*sigma(t)^2)',
+            markup=True,size=sp(12),color=C['text'],halign='left',valign='top'))
+        btn=NeonButton(text='Cerrar',style='outline',text_color=C['cyan'],
+                        size_hint_y=None,height=dp(40))
+        ov.add_widget(btn)
+        popup=Popup(title='Algoritmo de Kohonen',content=ov,
+                     size_hint=(.9,.68),background_color=C['bg2'])
+        btn.bind(on_press=popup.dismiss); popup.open()
+
+    def _about(self):
+        ov=BoxLayout(orientation='vertical',padding=dp(16),spacing=dp(12))
+        apply_bg(ov,C['bg2'])
+        ov.add_widget(lbl('StoryMap SOM v1.0',size=sp(16),color=C['cyan'],
+                            bold=True,halign='center',size_hint_y=None,height=dp(28)))
+        ov.add_widget(Widget(size_hint_y=None,height=dp(4)))
+        for linea in [
+            ('[b]Autores:[/b] Santiago Castaneda  |  Santiago Florez', C['text']),
+            ('[b]Tecnica IA:[/b] Self-Organizing Map (Red de Kohonen, 1982)', C['text']),
+            ('[b]NLP:[/b] TF-IDF + Clustering K-Means', C['text']),
+            ('[b]Framework:[/b] Kivy + Python 3.11', C['text']),
+            ('Computacion Blanda - 2026', C['muted']),
+        ]:
+            ov.add_widget(lbl(linea[0],markup=True,size=sp(12),color=linea[1],
+                               halign='center',size_hint_y=None,height=dp(36)))
+        btn=NeonButton(text='Cerrar',style='violet',text_color=C['violet'],
+                        size_hint_y=None,height=dp(44))
+        ov.add_widget(btn)
+        popup=Popup(title='Acerca de StoryMap SOM',content=ov,
+                     size_hint=(.9,.72),background_color=C['bg2'],
+                     title_color=C['cyan'],title_size=sp(14))
+        btn.bind(on_press=popup.dismiss); popup.open()
+
+    def _confirm_reset(self):
+        ov=BoxLayout(orientation='vertical',padding=dp(14),spacing=dp(12))
+        ov.add_widget(lbl('Reiniciar toda la sesion?\nSe perderan todos los documentos\n'
+                           'y el modelo entrenado.',size=sp(13),color=C['text'],halign='center'))
+        btns=BoxLayout(size_hint_y=None,height=dp(44),spacing=dp(8))
+        bn=NeonButton(text='Cancelar',style='sm')
+        by=NeonButton(text='Confirmar reset',style='danger',text_color=C['pink'])
+        btns.add_widget(bn); btns.add_widget(by); ov.add_widget(btns)
+        popup=Popup(title='Confirmar',content=ov,size_hint=(.85,.36),background_color=C['bg2'])
+        def do(*_): session.clear(); popup.dismiss()
+        by.bind(on_press=do); bn.bind(on_press=popup.dismiss); popup.open()
+
+# ── App ───────────────────────────────────────────────────────────────────────
+class StoryMapApp(App):
+    def build(self):
+        self.title='StoryMap SOM'
+        sm=ScreenManager(transition=FadeTransition(duration=0.2))
+        sm.add_widget(AppShell(name='app'))
+        return sm
+    def on_pause(self):  return True
+    def on_resume(self): pass
+
+if __name__=='__main__':
     StoryMapApp().run()
